@@ -3,128 +3,162 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#E7EBE4">
+<meta name="theme-color" content="#FBFAF7">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="MealTrend">
 <link rel="manifest" href="./manifest.json">
-<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%231F4D46'/%3E%3Ctext x='50' y='66' font-size='48' text-anchor='middle' fill='%23fff' font-family='sans-serif' font-weight='800'%3EM%3C/text%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%231E4F45'/%3E%3Crect x='18' y='30' width='64' height='9' rx='4.5' fill='%23C8402F'/%3E%3Crect x='18' y='46' width='64' height='9' rx='4.5' fill='%23D89A2B'/%3E%3Crect x='18' y='62' width='64' height='9' rx='4.5' fill='%233E7A4E'/%3E%3C/svg%3E">
 <title>MealTrend</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,400;0,500;0,700;0,800;1,400&display=swap" rel="stylesheet">
 <style>
-  :root{--bg:#E7EBE4;--surface:#FCFCFA;--ink:#13170F;--soft:#5D6656;--rule:#C9D0C2;--sambal:#AF3324;--turmeric:#B87C12;--pandan:#3B6B45;--deep:#1F4D46;}
+  :root{
+    --paper:#FBFAF7; --card:#FFFFFF; --ink:#2A2118; --ink2:#6B6055; --line:#E3DED4;
+    --chilli:#C8402F; --turmeric:#A6741A; --pandan:#3E7A4E; --deep:#1E4F45;
+    --chilli-bg:#FBE9E6; --turmeric-bg:#F7EBD3; --pandan-bg:#E8F1E9; --deep-bg:#E2EDEA;
+  }
   *{box-sizing:border-box}
-  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
-  header{position:sticky;top:0;z-index:5;background:var(--bg);padding:14px 16px 8px;border-bottom:1px solid var(--rule);display:flex;align-items:baseline;gap:10px}
-  header h1{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:22px;margin:0;letter-spacing:-.02em}
-  header .v{font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--soft);margin-left:auto}
-  #badge{background:var(--sambal);color:#fff;font-family:"IBM Plex Mono",monospace;font-size:10px;padding:2px 6px;border-radius:9px;display:none}
-  #view{padding:16px 16px 90px;max-width:720px;margin:0 auto}
-  #tabs{position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--rule);display:flex;padding:6px 4px calc(6px + env(safe-area-inset-bottom));z-index:5}
-  #tabs a{flex:1;text-align:center;font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);text-decoration:none;padding:8px 2px;border-radius:4px}
-  #tabs a.on{color:var(--ink);background:var(--bg);font-weight:600}
-  h2{font-family:"Bricolage Grotesque",sans-serif;font-weight:600;font-size:12px;letter-spacing:.14em;text-transform:uppercase;margin:26px 0 6px}
-  h3{font-family:"Bricolage Grotesque",sans-serif;font-weight:600;font-size:17px;margin:18px 0 6px;letter-spacing:-.01em}
-  .sub{color:var(--soft);font-size:13.5px;margin:0 0 14px}
-  .na{color:var(--soft);font-style:italic;font-size:12.5px}
-  .mono{font-family:"IBM Plex Mono",monospace;font-weight:600}
-  .hero{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:4px}
-  .stat{background:var(--surface);border:1px solid var(--rule);border-radius:4px;padding:14px}
-  .stat .n{font-family:"IBM Plex Mono",monospace;font-size:24px;font-weight:600;display:block;line-height:1;margin-bottom:6px}
-  .stat .n.good{color:var(--pandan)} .stat .n.hot{color:var(--sambal)} .stat .n.warm{color:var(--turmeric)}
-  .stat p{margin:0;font-size:12px;color:var(--soft);line-height:1.35}
-  .row{display:flex;gap:16px;align-items:center;margin:10px 0}
-  .legend{font-size:12.5px;display:grid;gap:4px}
-  .legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:middle}
-  .chip{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;padding:3px 6px;border-radius:2px;color:#fff;white-space:nowrap}
-  .chip.na{background:#C9D0C2;color:var(--soft)}
-  .btn{display:inline-block;background:var(--surface);border:1px solid var(--rule);border-radius:4px;padding:10px 14px;font:inherit;font-size:14px;cursor:pointer;margin:0 6px 8px 0;color:var(--ink)}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0;background:var(--paper);color:var(--ink);
+    font-family:"Public Sans",system-ui,-apple-system,sans-serif;
+    font-size:18px;line-height:1.6;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+  header{position:sticky;top:0;z-index:5;background:var(--paper);padding:16px 20px 12px;border-bottom:2px solid var(--ink)}
+  .brand{display:flex;align-items:center;gap:12px}
+  .brand h1{font-size:26px;font-weight:800;margin:0;letter-spacing:-.02em}
+  .alertdot{background:var(--chilli);color:#fff;font-size:14px;font-weight:700;min-width:26px;height:26px;
+    border-radius:13px;display:none;align-items:center;justify-content:center;padding:0 7px}
+  .stamp{margin:6px 0 0;font-size:14px;color:var(--ink2);font-weight:500}
+  .stamp b{color:var(--ink);font-weight:700}
+  main{padding:22px 20px 110px;max-width:760px;margin:0 auto}
+  nav{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:2px solid var(--ink);
+    display:flex;padding:8px 6px calc(8px + env(safe-area-inset-bottom));z-index:5}
+  nav a{flex:1;text-align:center;font-size:14px;font-weight:600;color:var(--ink2);text-decoration:none;
+    padding:12px 4px;border-radius:8px;min-height:48px;display:flex;align-items:center;justify-content:center}
+  nav a.on{color:var(--paper);background:var(--deep)}
+  a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--turmeric);outline-offset:2px}
+  h2{font-size:23px;font-weight:800;margin:34px 0 10px;letter-spacing:-.015em;line-height:1.25}
+  h2:first-child{margin-top:0}
+  h3{font-size:19px;font-weight:700;margin:22px 0 8px;line-height:1.3}
+  p{margin:0 0 14px}
+  .sub{color:var(--ink2);font-size:16px}
+  .nodata{color:var(--ink2);font-style:italic}
+  .status{display:inline-flex;align-items:center;gap:7px;font-weight:700;font-size:16px;padding:5px 12px;border-radius:20px;white-space:nowrap}
+  .s-vlow{background:var(--deep-bg);color:var(--deep)}
+  .s-low{background:var(--pandan-bg);color:var(--pandan)}
+  .s-moderate{background:var(--turmeric-bg);color:var(--turmeric)}
+  .s-high{background:var(--chilli-bg);color:var(--chilli)}
+  .s-none{background:#EFEDE8;color:var(--ink2)}
+  .answer{background:var(--card);border:2px solid var(--ink);border-radius:14px;padding:24px;margin-bottom:20px}
+  .answer .big{font-size:40px;font-weight:800;line-height:1.08;letter-spacing:-.03em;margin:0 0 12px}
+  .answer p{font-size:18px;margin:0;color:var(--ink2)}
+  .answer p b{color:var(--ink)}
+  .facts{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:22px}
+  .fact{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+  .fact .n{font-size:30px;font-weight:800;line-height:1;display:block;margin-bottom:6px;letter-spacing:-.02em}
+  .fact .n.good{color:var(--pandan)} .fact .n.bad{color:var(--chilli)} .fact .n.mid{color:var(--turmeric)}
+  .fact p{font-size:15px;color:var(--ink2);margin:0;line-height:1.35}
+  .meal{background:var(--card);border:1px solid var(--line);border-left-width:10px;border-radius:12px;
+    padding:16px 16px 16px 14px;margin-bottom:12px;cursor:pointer}
+  .meal.e-vlow{border-left-color:var(--deep)} .meal.e-low{border-left-color:var(--pandan)}
+  .meal.e-moderate{border-left-color:var(--turmeric)} .meal.e-high{border-left-color:var(--chilli)}
+  .meal .title{font-size:19px;font-weight:700;line-height:1.3;margin:0 0 6px}
+  .meal .when{font-size:15px;color:var(--ink2);margin:0 0 10px}
+  .meal .note{font-size:16px;color:var(--ink2);border-top:1px solid var(--line);padding-top:10px;margin-top:10px}
+  .meal .note.fromai{color:var(--pandan);font-weight:500}
+  .meal img{width:100%;max-height:150px;object-fit:cover;border-radius:8px;margin-top:12px}
+  .btn{display:inline-block;background:var(--card);border:2px solid var(--ink);border-radius:10px;
+    padding:14px 20px;font:inherit;font-size:17px;font-weight:700;cursor:pointer;margin:0 8px 10px 0;color:var(--ink);min-height:50px}
   .btn.primary{background:var(--deep);color:#fff;border-color:var(--deep)}
-  .btn.danger{color:var(--sambal);border-color:var(--sambal)}
-  .list{margin-top:10px}
-  .meal{background:var(--surface);border:1px solid var(--rule);border-radius:4px;padding:12px;margin-bottom:8px;cursor:pointer}
-  .mh{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-  .seq{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--soft)}
-  .lab{font-weight:600;flex:1}
-  .mm{font-size:12px;color:var(--soft);margin-top:4px}
-  .mn{font-size:12.5px;color:var(--soft);margin-top:6px;border-top:1px solid var(--rule);padding-top:6px}
-  .seg{display:flex;gap:4px;background:var(--surface);border:1px solid var(--rule);border-radius:4px;padding:4px;margin-bottom:8px}
-  .seg button{flex:1;border:0;background:transparent;font:inherit;font-size:12.5px;padding:8px 4px;border-radius:3px;cursor:pointer;color:var(--soft)}
-  .seg button.on{background:var(--bg);color:var(--ink);font-weight:600}
-  .nalist{font-size:13px;color:var(--soft);padding-left:18px}
-  ul.src{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--soft);padding-left:16px;line-height:1.6}
-  .lens{background:var(--surface);border:1px solid var(--rule);border-radius:4px;padding:16px;margin-bottom:12px}
+  .btn.warn{color:var(--chilli);border-color:var(--chilli)}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .seg{display:flex;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:6px;margin-bottom:16px}
+  .seg button{flex:1;border:0;background:transparent;font:inherit;font-size:16px;font-weight:600;
+    padding:12px 6px;border-radius:8px;cursor:pointer;color:var(--ink2);min-height:46px}
+  .seg button.on{background:var(--deep);color:#fff}
+  .chart{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
+  .key{display:flex;flex-wrap:wrap;gap:14px;font-size:15px;margin-top:12px}
+  .key i{display:inline-block;width:14px;height:14px;border-radius:4px;margin-right:6px;vertical-align:-2px}
+  .lens{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px;margin-bottom:14px}
   .lens h3{margin-top:0}
-  .lens .basis{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--soft);margin:0 0 10px}
-  .lens ul{margin:0;padding-left:18px;font-size:13.5px;color:var(--soft)}
-  .lens li{margin-bottom:6px}
-  .rec{border-left:3px solid var(--rule);padding:8px 0 8px 14px;margin-bottom:10px}
-  .rec.more{border-color:var(--pandan)} .rec.less{border-color:var(--sambal)}
-  .rec p{margin:4px 0;font-size:13.5px;color:var(--soft)}
-  .rec .src,.alert .src{font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--soft)}
-  .alert{background:var(--surface);border:1px solid var(--rule);border-left-width:4px;border-radius:4px;padding:12px;margin-bottom:10px}
-  .alert.red{border-left-color:var(--sambal)} .alert.amber{border-left-color:var(--turmeric)}
-  .ah{display:flex;gap:8px;align-items:center}
-  .alert p{margin:6px 0;font-size:13.5px;color:var(--soft)}
-  .ok{background:#EAF0E6;border:1px solid var(--pandan);border-radius:4px;padding:14px;color:var(--pandan)}
-  .search{width:100%;padding:10px;border:1px solid var(--rule);border-radius:4px;font:inherit;background:var(--surface);margin:6px 0 10px}
-  .lib{background:var(--surface);border:1px solid var(--rule);border-radius:4px;padding:12px;margin-bottom:8px}
-  .lh .cat{font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--soft);margin-left:8px}
-  .lg{display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12.5px;margin:8px 0}
-  .flags i{font-family:"IBM Plex Mono",monospace;font-size:9.5px;font-style:normal;background:var(--bg);padding:2px 6px;border-radius:2px;margin-right:4px;color:var(--soft)}
-  .ls{font-size:11px;color:var(--soft);margin-top:8px;border-top:1px solid var(--rule);padding-top:6px}
-  .ls em{color:var(--turmeric)} .conf{font-family:"IBM Plex Mono",monospace}
-  .ver{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--soft);margin-top:30px}
-  #modal{display:none;position:fixed;inset:0;background:rgba(19,23,15,.45);z-index:20;overflow:auto;padding:20px 12px}
+  .from{font-size:14px;color:var(--ink2);margin:0 0 12px}
+  .lens ul{margin:0;padding-left:22px;font-size:16.5px;color:var(--ink2)}
+  .lens li{margin-bottom:9px}
+  .tip{border-left:6px solid var(--line);padding:4px 0 4px 16px;margin-bottom:16px}
+  .tip.good{border-left-color:var(--pandan)} .tip.bad{border-left-color:var(--chilli)}
+  .tip b{font-size:18px;display:block;margin-bottom:4px}
+  .tip p{font-size:16.5px;color:var(--ink2);margin:0 0 6px}
+  .alert{border-radius:12px;padding:18px;margin-bottom:14px;border:2px solid}
+  .alert.red{background:var(--chilli-bg);border-color:var(--chilli)}
+  .alert.amber{background:var(--turmeric-bg);border-color:var(--turmeric)}
+  .alert b{font-size:19px;display:block;margin-bottom:6px}
+  .alert p{font-size:16.5px;margin:0 0 8px}
+  .allclear{background:var(--pandan-bg);border:2px solid var(--pandan);border-radius:12px;padding:20px;color:var(--pandan);font-size:18px;font-weight:600}
+  .food{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:12px}
+  .food .name{font-size:18px;font-weight:700}
+  .food .kind{font-size:14px;color:var(--ink2);font-weight:500}
+  .food .vals{display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:16px;margin:12px 0}
+  .food .tags i{display:inline-block;font-style:normal;font-size:14px;background:#EFEDE8;padding:4px 10px;border-radius:14px;margin:0 6px 6px 0;color:var(--ink2)}
+  .food .from{border-top:1px solid var(--line);padding-top:10px;margin-top:6px}
+  .food .from em{color:var(--turmeric);font-style:normal}
+  label{display:block;font-size:15px;font-weight:600;color:var(--ink2);margin:16px 0 6px}
+  input,select,textarea{width:100%;padding:14px;border:2px solid var(--line);border-radius:10px;font:inherit;font-size:17px;background:#fff;color:var(--ink);min-height:50px}
+  textarea{min-height:80px}
+  .hint{display:block;font-size:14px;color:var(--ink2);font-weight:400;margin-top:6px}
+  .search{margin-bottom:14px}
+  .checkline{display:flex;align-items:center;gap:12px;font-size:17px;color:var(--ink);font-weight:600;margin:16px 0}
+  .checkline input{width:26px;height:26px;min-height:0;margin:0;flex:0 0 26px}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  #modal{display:none;position:fixed;inset:0;background:rgba(42,33,24,.55);z-index:20;overflow:auto;padding:16px}
   #modal.open{display:block}
-  .mbox{background:var(--surface);border-radius:6px;padding:18px;max-width:560px;margin:0 auto}
-  .mbox h2{margin-top:0}
-  .mbox label{display:block;font-size:12px;color:var(--soft);margin:10px 0 4px}
-  .mbox input,.mbox select,.mbox textarea{width:100%;padding:9px;border:1px solid var(--rule);border-radius:4px;font:inherit;background:#fff;margin-top:3px}
-  .mbox textarea{min-height:60px}
-  .mbox .chk{display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--ink)} .mbox .chk input{width:auto;margin:0}
-  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-  .hit{padding:8px 10px;border-bottom:1px solid var(--rule);cursor:pointer;font-size:13.5px}
-  .hit .cat{font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--soft)}
-  .picked{margin:8px 0}
-  .tag{display:inline-block;background:var(--bg);border-radius:3px;padding:4px 8px;font-size:12.5px;margin:0 6px 6px 0}
-  .tag b{margin-left:6px;cursor:pointer;color:var(--sambal)}
-  .rating{background:var(--bg);border-radius:4px;padding:10px;margin:12px 0;font-size:13px}
-  .rating ul{margin:6px 0 0;padding-left:18px;color:var(--soft);font-size:12.5px}
-  .mbtn{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
-  .fld{display:block;font-size:12px;color:var(--soft);margin:10px 0 4px}
-  .hint{display:block;font-size:11px;color:var(--soft);margin-top:4px}
-  .fld input{width:100%;padding:9px;border:1px solid var(--rule);border-radius:4px;font:inherit;background:#fff;margin-top:3px}
-  .thumb{width:100%;max-height:220px;object-fit:cover;border-radius:4px;margin:8px 0}
-  .thumb.sm{max-height:120px;margin-top:8px}
-  .aibox{background:#F3F6F1;border:1px solid var(--pandan);border-radius:4px;padding:14px;margin:12px 0}
-  .aibox.err{border-color:var(--sambal);background:#F7EDEB}
-  .aih{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:6px}
-  .aih .mono{font-size:10px;color:var(--soft)}
-  .overall{font-size:14.5px;margin:0 0 10px}
-  .aisec{font-size:13px;margin:8px 0;padding-top:8px;border-top:1px solid var(--rule)}
-  .aisec b{display:inline-block;min-width:78px;color:var(--ink)}
-  .aisec ul{margin:4px 0 0;padding-left:18px;color:var(--soft)}
-  .aisec.ask{background:#FFF7E6;border:1px solid var(--turmeric);border-radius:3px;padding:8px 10px}
-  .aisec.na{color:var(--soft)}
-  .cites{display:block;font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--soft);margin-top:3px}
-  .disc{font-size:11px;color:var(--soft);margin:10px 0 0;font-style:italic}
-  .mn.ai{color:var(--pandan)}
-  .ntab{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px}
-  .ntab th{text-align:left;font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);border-bottom:1px solid var(--rule);padding:4px 6px 4px 0;font-weight:500}
-  .ntab td{padding:5px 6px 5px 0;border-bottom:1px solid var(--rule);vertical-align:top}
-  .ntab tr.navail td{color:var(--soft);font-style:italic}
-  .ntab tr.nnote td{font-size:11px;color:var(--turmeric);border-bottom:0;padding-top:0}
-  .ntab a{color:var(--pandan)}
-  .nsrc{display:block;font-size:10px;color:var(--soft)}
-  .aisec.hl{background:#fff;border:1px solid var(--deep);border-radius:3px;padding:8px 10px}
-  .tag.hlx{background:var(--deep);color:#fff;text-transform:uppercase;font-family:"IBM Plex Mono",monospace;font-size:10px}
-  pre{white-space:pre-wrap;font-size:11px;background:#fff;padding:8px;border-radius:3px}
+  .sheet{background:var(--paper);border-radius:16px;padding:22px;max-width:600px;margin:0 auto 40px}
+  .sheet h2{margin-top:0}
+  .hit{padding:14px 12px;border-bottom:1px solid var(--line);cursor:pointer;font-size:17px}
+  .hit span{font-size:14px;color:var(--ink2)}
+  .picked{margin:12px 0}
+  .tag{display:inline-block;background:#EFEDE8;border-radius:16px;padding:8px 14px;font-size:16px;margin:0 8px 8px 0}
+  .tag b{margin-left:8px;cursor:pointer;color:var(--chilli);font-size:19px}
+  .verdict{background:var(--card);border:2px solid var(--ink);border-radius:12px;padding:16px;margin:18px 0}
+  .verdict ul{margin:10px 0 0;padding-left:22px;color:var(--ink2);font-size:16px}
+  .sheetbtns{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
+  .ai{background:var(--pandan-bg);border:2px solid var(--pandan);border-radius:12px;padding:20px;margin:16px 0}
+  .ai.failed{background:var(--chilli-bg);border-color:var(--chilli)}
+  .ai .who{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:10px}
+  .ai .who b{font-size:19px}
+  .ai .who span{font-size:14px;color:var(--ink2)}
+  .ai .summary{font-size:18px;line-height:1.5;margin:0 0 14px}
+  .ai .part{font-size:16.5px;margin:12px 0;padding-top:12px;border-top:1px solid var(--line)}
+  .ai .part>b{display:block;margin-bottom:4px;font-size:16px}
+  .ai .part ul{margin:6px 0 0;padding-left:22px;color:var(--ink2)}
+  .ai .part li{margin-bottom:6px}
+  .ai .part.ask{background:#fff;border:2px solid var(--turmeric);border-radius:10px;padding:14px}
+  .ai .part.main{background:#fff;border:2px solid var(--deep);border-radius:10px;padding:14px}
+  .ai .cites{display:block;font-size:13.5px;color:var(--ink2);margin-top:5px}
+  .ai .disc{font-size:14px;color:var(--ink2);margin:16px 0 0;line-height:1.45}
+  .ntab{width:100%;border-collapse:collapse;font-size:16px;margin-top:8px}
+  .ntab th{text-align:left;font-size:14px;color:var(--ink2);border-bottom:2px solid var(--line);padding:0 8px 8px 0;font-weight:600}
+  .ntab td{padding:10px 8px 10px 0;border-bottom:1px solid var(--line);vertical-align:top}
+  .ntab tr.none td{color:var(--ink2);font-style:italic}
+  .ntab tr.rownote td{font-size:14.5px;color:var(--turmeric);border-bottom:0;padding-top:0}
+  .ntab a{color:var(--pandan);font-weight:600}
+  .ntab .where{display:block;font-size:13.5px;color:var(--ink2);font-weight:400}
+  .thumb{width:100%;max-height:240px;object-fit:cover;border-radius:10px;margin:12px 0}
+  pre{white-space:pre-wrap;font-size:14px;background:#fff;padding:12px;border-radius:8px;font-family:ui-monospace,monospace;line-height:1.45}
+  .srclist{font-size:14px;color:var(--ink2);padding-left:20px;line-height:1.65}
+  a{color:var(--pandan)}
+  @media (min-width:560px){ .facts{grid-template-columns:repeat(4,1fr)} }
+  @media (prefers-reduced-motion:no-preference){
+    .answer{animation:rise .45s cubic-bezier(.2,.7,.3,1) both}
+    @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  }
 </style>
 </head>
 <body>
-<header><h1>MealTrend</h1><span id="badge"></span><span class="v" id="ver"></span></header>
+<header>
+  <div class="brand"><h1>MealTrend</h1><span class="alertdot" id="badge"></span></div>
+  <p class="stamp">Version <b id="ver"></b></p>
+</header>
 <main id="view"></main>
 <nav id="tabs"></nav>
 <div id="modal"></div>
@@ -427,14 +461,14 @@ const SEED_MEALS = [
 // MEALTREND — app logic
 // Version stamp convention: vYYYY:MMM:DD-HH:MM (Asia/Singapore)
 // ============================================================
-const VERSION = "v2026:SEP:06-03:00"; // HH:MM approximate — device clock unavailable; set on first edit
+const VERSION = "v2026:SEP:07-10:10"; // HH:MM approximate — device clock unavailable; set on first edit
 
 const LS_KEY = "mealtrend.v1";
 const BANDS = {
-  purine: { vlow:{l:"Very low",c:"#1F4D46"}, low:{l:"Low",c:"#3B6B45"}, mod:{l:"Moderate",c:"#B87C12"}, high:{l:"High",c:"#AF3324"}, vhigh:{l:"Very high",c:"#7A1F14"} },
-  gi:     { low:{l:"Low",c:"#3B6B45"}, med:{l:"Medium",c:"#B87C12"}, high:{l:"High",c:"#AF3324"} },
-  sugar:  { low:{l:"Low",c:"#3B6B45"}, med:{l:"Medium",c:"#B87C12"}, high:{l:"High",c:"#AF3324"} },
-  rating: { vlow:{l:"Very low",c:"#1F4D46"}, low:{l:"Low",c:"#3B6B45"}, moderate:{l:"Moderate",c:"#B87C12"}, high:{l:"High",c:"#AF3324"} }
+  purine: { vlow:{l:"Very little",c:"#1E4F45"}, low:{l:"A little",c:"#3E7A4E"}, mod:{l:"Some",c:"#A6741A"}, high:{l:"A lot",c:"#C8402F"}, vhigh:{l:"A huge amount",c:"#8E2A1E"} },
+  gi:     { low:{l:"Slow",c:"#3E7A4E"}, med:{l:"Medium",c:"#A6741A"}, high:{l:"Fast",c:"#C8402F"} },
+  sugar:  { low:{l:"Low",c:"#3E7A4E"}, med:{l:"Medium",c:"#A6741A"}, high:{l:"High",c:"#C8402F"} },
+  rating: { vlow:{l:"Very safe",c:"#1E4F45"}, low:{l:"Fine",c:"#3E7A4E"}, moderate:{l:"Watch this",c:"#A6741A"}, high:{l:"Be careful",c:"#C8402F"} }
 };
 const RANK = { vlow:0, low:1, moderate:2, mod:2, high:3, vhigh:4 };
 const FOOD = Object.fromEntries(FOODS.map(f=>[f.id,f]));
@@ -454,16 +488,16 @@ function rateMeal(m){
   let rank = 0; const why=[];
   items.forEach(f=>{ if(f.purine.band){ rank=Math.max(rank,RANK[f.purine.band]); } });
   const top=items.filter(f=>f.purine.band && RANK[f.purine.band]===rank).map(f=>f.name).slice(0,2).join(", ");
-  if(rank>=3) why.push(`high-band purine item: ${top}`);
-  else if(rank===2) why.push(`moderate-band purine item: ${top}`);
-  if(flags.has("dried_seafood")){ rank=Math.max(rank,3); why.push("dried seafood present — concentrated purine (confirmed)"); }
-  else if(flags.has("dried_seafood_likely")){ rank=Math.max(rank,2); why.push("dried seafood conventional in this gravy but unconfirmed — ask the stall"); }
-  if(flags.has("organ")){ rank=Math.max(rank,3); why.push("organ meat present"); }
-  if(m.liquid==="gravy"||m.liquid==="concentrated"){ rank=Math.max(rank,2); why.push("concentrated liquid consumed — purines extract into liquid"); }
-  else if(m.liquid==="clear"){ why.push("clear stock only — extraction mild; rating follows the solids"); }
-  else if(!flags.has("dried_seafood")){ if(rank<3){ rank=Math.min(rank,1); } why.push("dry-cooked, no dried seafood — nothing extracted into a liquid"); }
+  if(rank>=3) why.push(`${top} is very high in purine`);
+  else if(rank===2) why.push(`${top} has a fair amount of purine`);
+  if(flags.has("dried_seafood")){ rank=Math.max(rank,3); why.push("Dried seafood is here. Drying removes water, so the purine gets packed tight."); }
+  else if(flags.has("dried_seafood_likely")){ rank=Math.max(rank,2); why.push("Gravies like this usually use dried shrimp, but nobody has confirmed it. Ask the stall."); }
+  if(flags.has("organ")){ rank=Math.max(rank,3); why.push("Organ meat is very high in purine."); }
+  if(m.liquid==="gravy"||m.liquid==="concentrated"){ rank=Math.max(rank,2); why.push("You drank a thick gravy. Purine dissolves in water, so it ends up in the liquid."); }
+  else if(m.liquid==="clear"){ why.push("Clear soup only. Less gets pulled into the liquid, so the food itself decides the score."); }
+  else if(!flags.has("dried_seafood")){ if(rank<3){ rank=Math.min(rank,1); } why.push("Cooked dry, no dried seafood. Nothing leaked into a liquid you drank."); }
   const plantOrZero = items.length && items.every(f=>f.purine.v===0 || (f.purine.v!=null && f.purine.v<50) || (f.purine.v==null && ["fruit","vegetable","drink","cake","dessert","cereal","fat","sauce","curry"].includes(f.cat)));
-  if(plantOrZero && m.liquid==="none" && !flags.has("dried_seafood")) return {rating:"vlow", why:["no meaningful purine source, no liquid"]};
+  if(plantOrZero && m.liquid==="none" && !flags.has("dried_seafood")) return {rating:"vlow", why:["Nothing here is a real purine source, and there is no soup or gravy."]};
   rank=Math.min(rank,3);
   const map=["vlow","low","moderate","high"];
   return { rating: map[Math.max(rank,1)], why };
@@ -533,41 +567,41 @@ function recommend(A){
   const more=[], less=[];
   const pct=x=>Math.round(100*x/A.n);
   // MORE
-  more.push({t:"Eggs and dairy", d:`Egg is 0 mg purine; milk 0 and carries a protective association (Choi 2004). Present in ${A.egg} and ${A.dairy} of ${A.n} meals.`, src:"Kaneko 2014; Choi NEJM 2004"});
-  more.push({t:"Dry-cooked protein, no dried garnish", d:`${A.dryNoSeaLow} of ${A.dryNoSea} dry-cooked meals without dried seafood rated Low or below. Grilled, pan-seared, stir-fried, dry-tossed.`, src:"This log"});
-  more.push({t:"Tofu, tempeh, bee hoon over yellow noodle", d:`Plant purines carry a weaker flare signal (Zhang 2012: OR 1.39 vs 2.41 animal). Bee hoon GI 35 — lowest of 15 Singapore foods tested.`, src:"Zhang 2012; Sun 2015"});
-  more.push({t:"Rice with fat, protein and vegetables — not alone", d:"Plain rice 96 → 50 in the same study when oil, chicken and vegetables were added. Your chicken-thigh-tempeh plate already does this.", src:"Henry 2021 compendium, Singapore rice study"});
-  more.push({t:"Sugarless drinks", d:`Three logged already (Coke Zero, teh tarik kosong, plain tea). Removes the fructose mechanism entirely.`, src:"ACR 2020 (conditional, low certainty)"});
+  more.push({t:"Eggs and milk", d:`Eggs have zero purine. So does milk, and a big study found milk drinkers got gout less often. You already have eggs in ${A.egg} meals and milk in ${A.dairy}.`, src:"Kaneko 2014; Choi NEJM 2004"});
+  more.push({t:"Grilled, fried and stir-fried food", d:`${A.dryNoSeaLow} of your ${A.dryNoSea} dry-cooked meals without dried seafood came out fine. Nothing leaks into a liquid you drink.`, src:"Your own meal log"});
+  more.push({t:"Tofu, tempeh and bee hoon", d:`Purine from plants causes far fewer gout attacks than purine from meat. And bee hoon raises blood sugar slower than any other Singapore food tested.`, src:"Zhang 2012; Sun 2015"});
+  more.push({t:"Never eat rice on its own", d:"In one study plain rice scored 96 for blood sugar speed. The same rice with oil, chicken and vegetables scored 50. Almost half. Your chicken and tempeh plate already does this.", src:"Henry 2021, Singapore rice study"});
+  more.push({t:"Drinks without sugar", d:`You have already picked these three times. Sugar in drinks pushes up uric acid. No sugar means that problem disappears.`, src:"ACR 2020 gout guideline"});
   // LESS
-  if(A.driedSea) less.push({t:"Dried seafood garnishes", d:`${A.driedSea} meals. Ikan bilis 1,109 mg/100g — 9× chicken. Skip the garnish; keep the rice and chicken.`, src:"Kaneko 2014"});
-  if(A.gravy) less.push({t:"Concentrated rempah gravies, drunk", d:`${A.gravy} meals (${pct(A.gravy)}%). ${A.liquidElevated} of ${A.liquid} liquid meals rated Moderate or above. Leave a third of the gravy — the solids were fine every time.`, src:"This log; water-soluble purine extraction"});
-  less.push({t:"Shell-on prawn in shellfish stock", d:"Prawn 53–273 mg/100g by species, plus shellfish stock extraction, plus a fried bun as sponge — three factors stacked in one meal.", src:"Kaneko 2014"});
-  if(A.sweet) less.push({t:"Sweetened gravies and dips", d:`${A.sweet} meals with a sweetened element. Mee siam, sweet-and-sour, sambal, chilli prawn. Only the snowskin (30.9 g/100g) has a measured figure.`, src:"FSA bands; WHO 2015"});
-  less.push({t:"Two risk meals in one day", d:"The flare day was two ikan bilis meals within hours. The 48-hour window, not the single plate, is the unit that matters.", src:"Zhang 2012"});
+  if(A.driedSea) less.push({t:"Ikan bilis and other dried seafood", d:`${A.driedSea} of your meals had it. Ikan bilis has nine times the purine of chicken. Skip the sprinkle on top. Keep the rice and the chicken.`, src:"Kaneko 2014"});
+  if(A.gravy) less.push({t:"Thick gravy you drink", d:`${A.gravy} meals, which is ${pct(A.gravy)}% of everything. Leave a third of the gravy in the bowl. The tofu, greens and noodles were fine every single time. It is the liquid.`, src:"Your own meal log"});
+  less.push({t:"Prawns in prawn gravy with fried bun", d:"Three problems in one dish. The prawn itself, the gravy made from prawn shells, and a fried bun that soaks the gravy up. Eat the prawn, skip the bun.", src:"Kaneko 2014"});
+  if(A.sweet) less.push({t:"Sweet sauces and dips", d:`${A.sweet} of your meals had something sweet in the sauce. Mee siam, sweet and sour, sambal, chilli prawn. Only the mooncake has a real sugar number on the packet.`, src:"WHO 2015 sugar guideline"});
+  less.push({t:"Two risky meals in one day", d:"Your sore toe came after two ikan bilis meals hours apart. What matters is the whole two days, not one plate. Spread the risky ones out.", src:"Zhang 2012"});
   return {more, less};
 }
 
 // ---------- SVG CHART HELPERS ----------
-const svg=(w,h,inner)=>`<svg viewBox="0 0 ${w} ${h}" width="100%" xmlns="http://www.w3.org/2000/svg" style="font-family:'IBM Plex Sans',sans-serif">${inner}</svg>`;
+const svg=(w,h,inner)=>`<svg viewBox="0 0 ${w} ${h}" width="100%" xmlns="http://www.w3.org/2000/svg" style="font-family:'Public Sans',sans-serif">${inner}</svg>`;
 function hbars(rows, opts={}){ // rows: [{label, v, band, color, conf}]
-  const W=360, rowH=26, pad=4, labW=opts.labW||150, maxV=opts.max||Math.max(...rows.map(r=>r.v||0),1);
+  const W=360, rowH=30, pad=4, labW=opts.labW||150, maxV=opts.max||Math.max(...rows.map(r=>r.v||0),1);
   const H=rows.length*rowH+pad*2;
   let s="";
   rows.forEach((r,i)=>{
     const y=pad+i*rowH; const bw=Math.max(2,(W-labW-60)*(r.v||0)/maxV);
-    s+=`<text x="0" y="${y+17}" font-size="11" fill="#13170F">${esc(r.label)}</text>`;
+    s+=`<text x="0" y="${y+18}" font-size="13" font-weight="600" fill="#2A2118">${esc(r.label)}</text>`;
     s+=`<rect x="${labW}" y="${y+6}" width="${bw}" height="14" rx="2" fill="${r.color}"/>`;
-    s+=`<text x="${labW+bw+6}" y="${y+17}" font-size="11" font-family="IBM Plex Mono" fill="#13170F">${r.v==null?"n/a":r.v}</text>`;
-    if(r.conf!=null) s+=`<text x="${W}" y="${y+17}" text-anchor="end" font-size="9.5" font-family="IBM Plex Mono" fill="#5D6656">${r.conf}%</text>`;
+    s+=`<text x="${labW+bw+8}" y="${y+18}" font-size="13" font-weight="700" fill="#2A2118">${r.v==null?"—":r.v}</text>`;
+    if(r.conf!=null) s+=`<text x="${W}" y="${y+18}" text-anchor="end" font-size="11" fill="#6B6055">${r.conf}%</text>`;
   });
   return svg(W,H,s);
 }
 function stackedSeq(meals){ // rating over sequence
-  const W=360,H=120,pad=6; const n=meals.length; const bw=(W-pad*2)/n;
-  let s=`<line x1="${pad}" y1="${H-20}" x2="${W-pad}" y2="${H-20}" stroke="#C9D0C2"/>`;
-  meals.forEach((m,i)=>{ const h=(RANK[m.rating]+1)*20; const c=BANDS.rating[m.rating].c;
+  const W=360,H=150,pad=6; const n=meals.length; const bw=(W-pad*2)/n;
+  let s=`<line x1="${pad}" y1="${H-20}" x2="${W-pad}" y2="${H-20}" stroke="#E3DED4"/>`;
+  meals.forEach((m,i)=>{ const h=(RANK[m.rating]+1)*26; const c=BANDS.rating[m.rating].c;
     s+=`<rect x="${pad+i*bw+1}" y="${H-20-h}" width="${Math.max(2,bw-2)}" height="${h}" fill="${c}" rx="1"><title>#${m.seq} ${esc(m.label)} — ${BANDS.rating[m.rating].l}</title></rect>`;
-    if(m.liquid!=="none") s+=`<circle cx="${pad+i*bw+bw/2}" cy="${H-10}" r="2.5" fill="${m.liquid==="clear"?"#B87C12":"#AF3324"}"/>`;
+    if(m.liquid!=="none") s+=`<circle cx="${pad+i*bw+bw/2}" cy="${H-9}" r="3.5" fill="${m.liquid==="clear"?"#A6741A":"#C8402F"}"/>`;
   });
   return svg(W,H,s);
 }
@@ -584,37 +618,53 @@ const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&g
 
 // ---------- VIEWS ----------
 const $=s=>document.querySelector(s);
-function chip(band,kind){ const b=BANDS[kind][band]; return b?`<span class="chip" style="background:${b.c}">${b.l}</span>`:`<span class="chip na">n/a</span>`; }
-function val(x,unit=""){ return x==null?`<span class="na">not available</span>`:`<span class="mono">${x}${unit}</span>`; }
+function chip(band,kind){ const b=BANDS[kind]&&BANDS[kind][band];
+  if(!b) return `<span class="status s-none">No data</span>`;
+  const cls = kind==="rating" ? "s-"+band : (RANK[band]>=3?"s-high":RANK[band]>=2?"s-moderate":RANK[band]>=1?"s-low":"s-vlow");
+  const cls2 = kind==="gi" ? (band==="high"?"s-high":band==="med"?"s-moderate":"s-low")
+             : kind==="sugar" ? (band==="high"?"s-high":band==="med"?"s-moderate":"s-low") : cls;
+  return `<span class="status ${cls2}">${b.l}</span>`; }
+function val(x,unit=""){ return x==null?`<span class="nodata">No data</span>`:`<b>${x}${unit}</b>`; }
 
 function viewDashboard(){
-  const A=analyse(STATE.meals); const al=alerts(STATE.meals); const reds=al.filter(a=>a.lvl==="red").length, ambers=al.filter(a=>a.lvl==="amber").length;
+  const A=analyse(STATE.meals); const al=alerts(STATE.meals);
+  const reds=al.filter(a=>a.lvl==="red").length, ambers=al.filter(a=>a.lvl==="amber").length;
+  const okPct=Math.round(100*(A.byRating.vlow+A.byRating.low)/Math.max(1,A.n));
+  const head = reds ? "Something needs your attention"
+             : okPct>=70 ? "Most of your meals look fine"
+             : "A few meals need watching";
   return `
-  <section class="hero">
-    <div class="stat"><span class="n ${A.dryNoSeaLow===A.dryNoSea?'good':''}">${A.dryNoSeaLow}/${A.dryNoSea}</span><p>Dry-cooked, no dried seafood → rated Low or below</p></div>
-    <div class="stat"><span class="n hot">${A.liquidElevated}/${A.liquid}</span><p>Liquid meals rated Moderate or above</p></div>
-    <div class="stat"><span class="n ${reds?'hot':'good'}">${reds}</span><p>Red alerts</p></div>
-    <div class="stat"><span class="n ${ambers?'warm':'good'}">${ambers}</span><p>Amber alerts</p></div>
-  </section>
-  <h2>Purine rating over sequence</h2>
-  <p class="sub">Bar height = rating. Dot beneath = liquid consumed (amber clear, red concentrated). No dates recorded for seeded meals; x-axis is order.</p>
-  ${stackedSeq([...STATE.meals].sort((a,b)=>a.seq-b.seq))}
-  <div class="row"><div>${donut([{v:A.byRating.vlow,color:BANDS.rating.vlow.c,label:"Very low"},{v:A.byRating.low,color:BANDS.rating.low.c,label:"Low"},{v:A.byRating.moderate,color:BANDS.rating.moderate.c,label:"Moderate"},{v:A.byRating.high,color:BANDS.rating.high.c,label:"High"}])}</div>
-  <div class="legend">${Object.entries(A.byRating).map(([k,v])=>`<div><i style="background:${BANDS.rating[k].c}"></i>${BANDS.rating[k].l} <b>${v}</b></div>`).join("")}</div></div>
-  <h2>The finding that holds</h2>
-  <p class="sub">Across ${A.n} meals: dry-cooked meals with no dried seafood rated Low or below ${A.dryNoSeaLow}/${A.dryNoSea} times. The one dry-cooked meal rated High (nasi lemak) had an ikan bilis garnish — the exception is the garnish, not the cooking. Liquid meals were <em>mostly</em> elevated (${A.liquidElevated}/${A.liquid}); the exceptions were thin clear stocks with one low-purine meat. Extraction is a spectrum, not a switch.</p>
-  <p class="sub"><b>Seeded meals keep the rating assigned in the log.</b> Open any meal to see what the engine would rate it now — several early clear-soup meals were rated Moderate before the spectrum finding; the engine now rates them Low.</p>`;
+  <div class="answer">
+    <p class="big">${head}</p>
+    <p><b>${okPct}%</b> of your ${A.n} meals came out fine or very safe. ${reds?`<b>${reds}</b> ${reds===1?"meal needs":"meals need"} a closer look.`:"Nothing is flagged red right now."}</p>
+  </div>
+  <div class="facts">
+    <div class="fact"><span class="n good">${A.dryNoSeaLow}/${A.dryNoSea}</span><p>Meals cooked dry, with no dried seafood, that came out fine</p></div>
+    <div class="fact"><span class="n bad">${A.liquidElevated}/${A.liquid}</span><p>Soup or gravy meals that needed watching</p></div>
+    <div class="fact"><span class="n ${reds?'bad':'good'}">${reds}</span><p>Red warnings</p></div>
+    <div class="fact"><span class="n ${ambers?'mid':'good'}">${ambers}</span><p>Orange warnings</p></div>
+  </div>
+  <h2>Your meals over time</h2>
+  <p class="sub">Each bar is one meal. Taller and redder means more purine. A dot underneath means you drank soup or gravy with it.</p>
+  <div class="chart">${stackedSeq([...STATE.meals].sort((a,b)=>a.seq-b.seq))}
+    <div class="key">${Object.entries(A.byRating).map(([k,v])=>`<span><i style="background:${BANDS.rating[k].c}"></i>${BANDS.rating[k].l} — ${v}</span>`).join("")}</div>
+  </div>
+  <h2>What the log shows</h2>
+  <p>When you cook food dry and skip dried seafood, it comes out fine almost every time — <b>${A.dryNoSeaLow} out of ${A.dryNoSea}</b>. The one dry meal that scored badly was nasi lemak, and that was the ikan bilis on top, not the cooking.</p>
+  <p>Soup and gravy meals are the opposite: <b>${A.liquidElevated} of ${A.liquid}</b> needed watching. But not all of them. Thin clear soup with one piece of low-purine meat scored fine. Thick rempah gravy did not. <b>How strong the liquid is matters more than whether it is a liquid.</b></p>
+  <p class="sub">Older meals keep the score I gave them during our conversation. Open any meal to see what the app would score it now — a few early clear soups were marked stricter than they should have been.</p>`;
 }
 
 function viewLog(){
   const meals=[...STATE.meals].sort((a,b)=>b.seq-a.seq);
-  return `<button class="btn primary" onclick="openAdd()">+ Add meal</button>
-  <div class="list">${meals.map(m=>`<div class="meal" onclick="openMeal('${m.id}')">
-    <div class="mh"><span class="seq">#${m.seq}</span><span class="lab">${esc(m.label)}</span>${chip(m.rating,'rating')}</div>
-    <div class="mm">${m.date||'<span class="na">date not recorded</span>'} · ${m.slot} · liquid: ${m.liquid}${m.checked?' · <b>checked</b>':''}</div>
-    ${m.note?`<div class="mn">${esc(m.note)}</div>`:''}
-    ${m.ai&&!m.ai.error?`<div class="mn ai"><b>AI:</b> ${esc(m.ai.overall||"")}</div>`:''}
-    ${m.thumb?`<img class="thumb sm" src="data:image/jpeg;base64,${m.thumb}" alt="">`:''}
+  return `<button class="btn primary" onclick="openAdd()">Add a meal</button>
+  <div>${meals.map(m=>`<div class="meal e-${m.rating}" onclick="openMeal('${m.id}')">
+    <p class="title">${esc(m.label)}</p>
+    <p class="when">${m.date||'Date not recorded'} · ${m.slot}${m.liquid!=="none"?` · you drank the ${m.liquid==="gravy"?"gravy":"soup"}`:""}${m.checked?` · you checked the ingredients`:""}</p>
+    ${chip(m.rating,'rating')}
+    ${m.note?`<p class="note">${esc(m.note)}</p>`:''}
+    ${m.ai&&!m.ai.error?`<p class="note fromai">${esc(m.ai.overall||"")}</p>`:''}
+    ${m.thumb?`<img src="data:image/jpeg;base64,${m.thumb}" alt="">`:''}
   </div>`).join("")}</div>`;
 }
 
@@ -624,71 +674,87 @@ function viewRankings(kind){
   const bandKind={purine:"purine",gi:"gi",sugar:"sugar",chol:null}[kind];
   const rows=FOODS.filter(f=>eaten.has(f.id)).map(f=>({f, v:f[key].v, band:f[key].band, conf:f[key].conf, src:f[key].src, note:f[key].note}));
   const withV=rows.filter(r=>r.v!=null).sort((a,b)=>b.v-a.v); const noV=rows.filter(r=>r.v==null);
-  const colorFor=r=>{ if(kind==="chol"){ return r.v>=300?"#AF3324":r.v>=100?"#B87C12":"#3B6B45"; } return (BANDS[bandKind][r.band]||{c:"#888"}).c; };
-  const title={purine:"Purine, mg/100 g — foods you've eaten",gi:"Glycemic index — foods you've eaten",sugar:"Sugar, g/100 g — foods you've eaten",chol:"Dietary cholesterol, mg/100 g — foods you've eaten"}[kind];
-  const note={purine:"Kaneko et al. 2014, HPLC. Bands: <50 very low · 50–100 low · 100–200 moderate · 200–300 high · >300 very high. Log-scale not used here so bars are true proportion.",
-    gi:"Bands: ≤55 low · 56–69 medium · ≥70 high. Nasi lemak shown at HPB band midpoint (85) — real range 70–100.",
-    sugar:"FSA bands: ≤5 low · 5–22.5 medium · >22.5 high per 100 g. Only items with a measured figure appear.",
-    chol:"<b>No guideline threshold exists.</b> The 300 mg/day limit was removed from US Dietary Guidelines in 2015. Colour here is a ranking aid only: >300 red, 100–300 amber, <100 green. Egg yolk's 1,085 is per 100 g of yolk; one yolk is ~17 g."}[kind];
+  const colorFor=r=>{ if(kind==="chol"){ return r.v>=300?"#C8402F":r.v>=100?"#A6741A":"#3E7A4E"; } return (BANDS[bandKind][r.band]||{c:"#888"}).c; };
+  const title={purine:"Purine in the foods you eat",gi:"How fast these foods raise blood sugar",sugar:"Sugar in the foods you eat",chol:"Cholesterol in the foods you eat"}[kind];
+  const note={
+    purine:"Purine is a chemical in food. Your body turns it into uric acid. Too much uric acid can cause gout. Numbers are milligrams per 100 grams of food.",
+    gi:"Glycemic index means how fast a food pushes up your blood sugar. Under 55 is slow. 56 to 69 is medium. 70 and above is fast. Slower is easier on your body.",
+    sugar:"Grams of sugar per 100 grams of food. Under 5 is low. Over 22.5 is high. These are the UK food label limits.",
+    chol:"Milligrams of cholesterol per 100 grams. <b>There is no daily limit any more</b> — the old 300 mg rule was dropped in 2015. This list is for comparing foods, not for worrying. Saturated fat matters more for your heart, and this app does not track that yet."
+  }[kind];
   return `<h2>${title}</h2><p class="sub">${note}</p>
-  ${withV.length?hbars(withV.map(r=>({label:r.f.name.length>26?r.f.name.slice(0,25)+"…":r.f.name, v:r.v, color:colorFor(r), conf:r.conf})),{labW:150}):'<p class="na">No measured values among foods eaten.</p>'}
-  ${noV.length?`<h3>Not measured</h3><ul class="nalist">${noV.map(r=>`<li><b>${esc(r.f.name)}</b>${r.note?` — ${esc(r.note)}`:''}</li>`).join("")}</ul>`:''}
-  <h3>Sources</h3><ul class="src">${[...new Set(withV.map(r=>r.src).filter(Boolean))].map(s=>`<li>${esc(s)}</li>`).join("")}</ul>`;
+  ${withV.length?`<div class="chart">`+hbars(withV.map(r=>({label:r.f.name.length>26?r.f.name.slice(0,25)+"…":r.f.name, v:r.v, color:colorFor(r), conf:r.conf})),{labW:150})+`</div>`:'<p class="nodata">None of the foods you have eaten have a measured number for this.</p>'}
+  ${noV.length?`<h3>No number available for these</h3><ul class="nalist">${noV.map(r=>`<li><b>${esc(r.f.name)}</b>${r.note?` — ${esc(r.note)}`:''}</li>`).join("")}</ul>`:''}
+  <h3>Where these numbers come from</h3><ul class="srclist">${[...new Set(withV.map(r=>r.src).filter(Boolean))].map(s=>`<li>${esc(s)}</li>`).join("")}</ul>`;
 }
 
 function viewLenses(){
   const A=analyse(STATE.meals); const R=recommend(A);
-  const lens=(name,basis,body)=>`<div class="lens"><h3>${name}</h3><p class="basis">${basis}</p>${body}</div>`;
-  return `<h2>AI dietitian review of the whole log</h2>
-  <button class="btn primary" onclick="runLogAI()" ${AI.ready()?"":"disabled title='Add API key under More → AI'"}>${STATE.review?"Re-run review":"Run review"}</button>
+  const lens=(name,basis,body)=>`<div class="lens"><h3>${name}</h3><p class="from">Based on: ${basis}</p>${body}</div>`;
+  return `<h2>Ask the AI dietitian about everything you have eaten</h2>
+  <button class="btn primary" onclick="runLogAI()" ${AI.ready()?"":"disabled title='Add API key under More → AI'"}>${STATE.review?"Look again":"Review my meals"}</button>
   <div id="reviewBox">${renderReview(STATE.review)}</div>
-  <h2>Rule-based lenses</h2>
-  <p class="sub"><b>These are rule engines derived from published guidelines, not consultations with practitioners.</b> Each lens names its source. Nothing here was measured on you.</p>
-  ${lens("Rheumatology · gout", "ACR 2020 guideline (FitzGerald et al.); Zhang 2012 Ann Rheum Dis; Choi 2004 NEJM & Lancet; Kaneko 2014 purine table",
-    `<ul><li>Dried seafood in ${A.driedSea} of ${A.n} meals — the single densest purine source you eat.</li><li>Concentrated gravies in ${A.gravy} meals; clear stocks in ${A.clear}. ${A.liquidElevated} of ${A.liquid} liquid meals rated Moderate+.</li><li>Alcohol: ${A.alcohol}. Organ meat: ${A.organ}. Both absent — two of the largest guideline risk categories.</li><li>Dairy in ${A.dairy} meals — protective association.</li><li>Diet moves serum urate ~1.0–1.2 mg/dL; genetics and renal handling dominate. <b>A serum urate test outranks every figure in this app.</b></li></ul>`)}
-  ${lens("Diabetes · glycemic", "HPB HealthHub GI table (2025); Henry et al. 2021 compendium; Atkinson et al. 2021",
-    `<ul><li>High-GI starch in ${A.highGI} of ${A.n} meals; starch of any kind in ${A.starch}.</li><li>Composition beats substitution: plain rice 96 → 50 with oil, protein and vegetables. You don't need less rice — you need rice not eaten alone.</li><li>Bee hoon (35) is your lowest-GI staple; nasi lemak (70–100, HPB) your highest.</li><li>No daily GI threshold exists in any guideline — flags here are patterns, not limits.</li></ul>`)}
-  ${lens("Cardiology · lipids", "Dietary Guidelines for Americans 2015–2020 and 2020–2025; AHA 2019 science advisory",
-    `<ul><li>The 300 mg/day dietary cholesterol limit was <b>removed in 2015</b>. Current guidance: as low as possible without compromising nutritional adequacy. <b>No red alert fires on cholesterol</b> because no threshold exists to fire it on.</li><li>Cholesterol data in this library is thin — ${FOODS.filter(f=>f.chol.v!=null && f.chol.v>0).length} measured values. Pork cuts not retrieved.</li><li>Saturated fat matters more than dietary cholesterol for blood lipids per current consensus — and this app does not track it. Pork lard, coconut milk and fried items are where it sits in your log.</li><li>Eggs: yolk 1,085 mg/100 g but one yolk ≈17 g. Four eggs ≈ 4 yolks — a real quantity, and the one item where cholesterol and purine point opposite ways.</li></ul>`)}
-  ${lens("Singapore hawker", "HPB HealthHub; Henry 2021 compendium (Singapore & Malaysia studies)",
-    `<ul><li>Asking the stall worked ${A.checked} times of ${A.checked} — every answer lowered the rating. Your kitchen uses less dried seafood than default assumptions.</li><li>Rempah gravies are the largest unresolved gap: hae bee is conventional but never confirmed in ${A.gravy} gravy meals.</li><li>Order yong tau fu in clear soup, not laksa gravy. Same tofu and greens, different liquid.</li></ul>`)}
-  <h2>Eat more</h2>${R.more.map(r=>`<div class="rec more"><b>${esc(r.t)}</b><p>${esc(r.d)}</p><span class="src">${esc(r.src)}</span></div>`).join("")}
-  <h2>Eat less</h2>${R.less.map(r=>`<div class="rec less"><b>${esc(r.t)}</b><p>${esc(r.d)}</p><span class="src">${esc(r.src)}</span></div>`).join("")}`;
+  <h2>What the health guidelines say</h2>
+  <p class="sub">These are rules written down from published health guidelines. No doctor or dietitian looked at your case. Nothing here was measured on your body.</p>
+  ${lens("Gout and uric acid", "ACR 2020 guideline; Zhang 2012; Choi 2004; Kaneko 2014 purine table",
+    `<ul><li>Purine is a chemical in food. Your body turns it into uric acid. Too much uric acid can form crystals in a joint, and that is gout.</li>
+    <li>Dried seafood showed up in ${A.driedSea} of your ${A.n} meals. It is by far the strongest purine source you eat.</li>
+    <li>You drank thick gravy in ${A.gravy} meals and clear soup in ${A.clear}. Of all ${A.liquid} liquid meals, ${A.liquidElevated} needed watching.</li>
+    <li>No alcohol and no organ meat anywhere in your log. Those are two of the biggest gout triggers, and you avoid both already.</li>
+    <li>Milk appeared in ${A.dairy} meals. People who drink more milk get gout less often.</li>
+    <li>Food only moves your uric acid a small amount. Your genes and your kidneys do most of the work. <b>A blood test would tell you more than this whole app.</b></li></ul>`)}
+  ${lens("Blood sugar", "Singapore HPB glycemic index list, 2025; Henry 2021; Atkinson 2021",
+    `<ul><li>Glycemic index means how fast a food pushes your blood sugar up. Slow is better.</li>
+    <li>${A.highGI} of your ${A.n} meals had a fast-acting starch. ${A.starch} had starch of some kind.</li>
+    <li>What you eat <i>with</i> the rice matters more than swapping the rice. Plain rice scored 96. The same rice with oil, chicken and vegetables scored 50.</li>
+    <li>Bee hoon is the slowest staple you eat, at 35. Nasi lemak is the fastest, at 70 to 100.</li>
+    <li>There is no daily limit for glycemic index in any guideline. These are patterns, not rules.</li></ul>`)}
+  ${lens("Heart and cholesterol", "US Dietary Guidelines 2015-2020 and 2020-2025; AHA 2019",
+    `<ul><li><b>The old 300 mg daily cholesterol limit was dropped in 2015.</b> There is no daily limit now. That is why this app never sounds an alarm about cholesterol.</li>
+    <li>Saturated fat matters far more for your heart than cholesterol in food does. In your log it comes from pork lard, coconut milk and deep-fried food.</li>
+    <li>This app does not track saturated fat yet. That is a real gap.</li>
+    <li>Egg yolk looks alarming at 1,085 mg per 100 g, but one yolk weighs about 17 g. Four eggs is four yolks. That is a real amount, but it is the only food where cholesterol and purine point in opposite directions.</li></ul>`)}
+  ${lens("Eating at hawker centres", "Singapore HPB; Henry 2021 Singapore and Malaysia studies",
+    `<ul><li>You asked the cook or stall what went in ${A.checked} times. Every single time the answer made the meal <i>safer</i> than assumed. Keep asking.</li>
+    <li>Gravies are the big unknown. Dried shrimp is normal in rempah, but nobody has confirmed it in your ${A.gravy} gravy meals.</li>
+    <li>Order yong tau fu in clear soup instead of laksa gravy. Same tofu, same vegetables, much lighter liquid.</li></ul>`)}
+  <h2>Eat more of this</h2>${R.more.map(r=>`<div class="tip good"><b>${esc(r.t)}</b><p>${esc(r.d)}</p><p class="from">Based on: ${esc(r.src)}</p></div>`).join("")}
+  <h2>Eat less of this</h2>${R.less.map(r=>`<div class="tip bad"><b>${esc(r.t)}</b><p>${esc(r.d)}</p><p class="from">Based on: ${esc(r.src)}</p></div>`).join("")}`;
 }
 
 function viewAlerts(){
   const al=alerts(STATE.meals).sort((a,b)=>b.seq-a.seq);
-  if(!al.length) return `<p class="ok">No alerts. The log shows no organ meat, no alcohol, and no repeated dried-seafood day beyond the original flare day.</p>`;
-  return `<p class="sub">Alerts run on flags and frequency, not on mg totals — no meal has a portion weight. Windows use dates where recorded, otherwise adjacent entries.</p>
-  ${al.map(a=>`<div class="alert ${a.lvl}"><div class="ah">${a.lvl==="red"?"🔴":"🟠"} <b>${esc(a.t)}</b> <span class="seq">#${a.seq}</span></div><p>${esc(a.d)}</p><span class="src">${esc(a.src)}</span></div>`).join("")}`;
+  if(!al.length) return `<div class="allclear">Nothing to flag. No organ meat, no alcohol, and no repeat of the double dried-seafood day.</div>`;
+  return `<p class="sub">These warnings look at what kind of food you ate and how often — not exact amounts, because no meal here was weighed. Warnings that need a time window only work on meals with a date.</p>
+  ${al.map(a=>`<div class="alert ${a.lvl}"><b>${esc(a.t)}</b><p>${esc(a.d)}</p><p class="from">Based on: ${esc(a.src)}</p></div>`).join("")}`;
 }
 
 function viewLibrary(){
-  return `<p class="sub">${FOODS.length} foods. Every value carries source and confidence. <b>null means not measured — never estimated.</b></p>
-  <input class="search" placeholder="search foods" oninput="filterLib(this.value)">
+  return `<p class="sub">${FOODS.length} foods. Every number says where it came from and how sure we are. <b>"No data" means nobody has measured it. The app never makes a number up.</b></p>
+  <input class="search" placeholder="Search foods" oninput="filterLib(this.value)">
   <div id="lib">${libRows(FOODS)}</div>`;
 }
-function libRows(list){ return list.map(f=>`<div class="lib"><div class="lh"><b>${esc(f.name)}</b> <span class="cat">${esc(f.cat)}</span></div>
-  <div class="lg"><span>Purine ${val(f.purine.v," mg")} ${chip(f.purine.band,'purine')}</span><span>GI ${val(f.gi.v)} ${chip(f.gi.band,'gi')}</span><span>Sugar ${val(f.sugar.v," g")} ${chip(f.sugar.band,'sugar')}</span><span>Chol ${val(f.chol.v," mg")}</span></div>
-  ${(f.flags||[]).length?`<div class="flags">${f.flags.map(x=>`<i>${x.replace("_"," ")}</i>`).join("")}</div>`:''}
-  <div class="ls">${[f.purine,f.gi,f.sugar,f.chol].filter(x=>x.src||x.note).map(x=>`<div>${x.src?esc(x.src):''}${x.note?` <em>${esc(x.note)}</em>`:''}${x.conf!=null?` <span class="conf">${x.conf}%</span>`:''}</div>`).join("")}</div></div>`).join(""); }
+function libRows(list){ return list.map(f=>`<div class="food"><div><span class="name">${esc(f.name)}</span> <span class="kind">${esc(f.cat)}</span></div>
+  <div class="vals"><span>Purine ${val(f.purine.v," mg")} ${chip(f.purine.band,'purine')}</span><span>Blood sugar speed ${val(f.gi.v)} ${chip(f.gi.band,'gi')}</span><span>Sugar ${val(f.sugar.v," g")} ${chip(f.sugar.band,'sugar')}</span><span>Cholesterol ${val(f.chol.v," mg")}</span></div>
+  ${(f.flags||[]).length?`<div class="tags">${f.flags.map(x=>`<i>${x.replace(/_/g," ")}</i>`).join("")}</div>`:''}
+  <div class="from">${[f.purine,f.gi,f.sugar,f.chol].filter(x=>x.src||x.note).map(x=>`<div>${x.src?esc(x.src):''}${x.note?` <em>${esc(x.note)}</em>`:''}${x.conf!=null?` — ${x.conf}% sure`:''}</div>`).join("")}</div></div>`).join(""); }
 function filterLib(q){ q=q.toLowerCase(); $("#lib").innerHTML=libRows(FOODS.filter(f=>f.name.toLowerCase().includes(q)||f.cat.includes(q))); }
 
 function viewSettings(){
-  return viewAISettings()+`<h2>Data</h2>
-  <button class="btn" onclick="exportJSON()">Export JSON</button>
-  <label class="btn">Import JSON<input type="file" accept="application/json" onchange="importJSON(this)" hidden></label>
-  <button class="btn danger" onclick="if(confirm('Reset to the 23 seeded meals? Your additions will be lost.')){localStorage.removeItem(LS_KEY);location.reload();}">Reset to seed</button>
-  <h2>What this app does not do</h2>
+  return viewAISettings()+`<h2>Your data</h2>
+  <button class="btn" onclick="exportJSON()">Save a backup</button>
+  <label class="btn">Load a backup<input type="file" accept="application/json" onchange="importJSON(this)" hidden></label>
+  <button class="btn warn" onclick="if(confirm('Start over with just the original meals? Anything you added will be deleted.')){localStorage.removeItem(LS_KEY);location.reload();}">Start over</button>
+  <h2>What this app cannot do</h2>
   <ul class="sub">
-    <li>It does not compute daily purine in mg — no portion weights exist.</li>
+    <li>It cannot add up your daily purine in milligrams. Nobody weighed the food.</li>
     <li>Photo analysis and the dietitian review need your own API key (above). Without it, everything else works.</li>
-    <li>It does not sync — localStorage only, matching your other PWAs. Export regularly.</li>
-    <li>It does not diagnose. The original toe episode was never clinically confirmed as gout.</li>
-    <li>It has no cholesterol alert — no guideline threshold exists since 2015.</li>
+    <li>It does not back itself up. Everything is stored in this browser only. Export your data now and then.</li>
+    <li>It cannot diagnose anything. Your swollen toe was never confirmed as gout by a doctor.</li>
+    <li>It has no cholesterol warning, because no health guideline sets a daily limit any more.</li>
   </ul>
-  <h2>Sources</h2><ul class="src">${Object.values(SRC).map(s=>`<li>${esc(s)}</li>`).join("")}<li>${esc(GUIDE.free_sugar_g.src)}</li><li>${esc(GUIDE.cholesterol_mg.src)}</li></ul>
-  <p class="ver">${VERSION}</p>`;
+  <h2>Where the numbers come from</h2><ul class="srclist">${Object.values(SRC).map(s=>`<li>${esc(s)}</li>`).join("")}<li>${esc(GUIDE.free_sugar_g.src)}</li><li>${esc(GUIDE.cholesterol_mg.src)}</li></ul>
+  <p class="sub">App version ${VERSION}. The date is when this version was built.</p>`;
 }
 
 // ---------- ADD / EDIT MEAL ----------
@@ -701,42 +767,42 @@ function openAdd(m){
 function openMeal(id){ const m=STATE.meals.find(x=>x.id===id); if(m) openAdd(m); }
 function renderModal(){
   const r=rateMeal(ADD);
-  $("#modal").innerHTML=`<div class="mbox">
-    <h2>${ADD.source?'Meal #'+ADD.seq:'New meal'}</h2>
-    <label>Label<input value="${esc(ADD.label)}" oninput="ADD.label=this.value"></label>
+  $("#modal").innerHTML=`<div class="sheet">
+    <h2>${ADD.source?"Meal "+ADD.seq:"Add a meal"}</h2>
+    <label>What did you eat?<input value="${esc(ADD.label)}" oninput="ADD.label=this.value"></label>
     <div class="grid2"><label>Date<input type="date" value="${ADD.date||''}" onchange="ADD.date=this.value||null"></label>
     <label>Slot<select onchange="ADD.slot=this.value">${["breakfast","brunch","lunch","snack","dinner"].map(s=>`<option ${ADD.slot===s?'selected':''}>${s}</option>`).join("")}</select></label></div>
-    <label>Liquid consumed<select onchange="ADD.liquid=this.value;renderModal()">${[["none","None — dry-cooked"],["clear","Clear stock, gently simmered"],["concentrated","Concentrated / long-reduced broth"],["gravy","Rempah gravy or shellfish stock"]].map(([v,l])=>`<option value="${v}" ${ADD.liquid===v?'selected':''}>${l}</option>`).join("")}</select></label>
-    <label class="chk"><input type="checkbox" ${ADD.checked?'checked':''} onchange="ADD.checked=this.checked"> Ingredient checked with cook / stall</label>
-    <label class="fld">Photo <span id="photoStatus" class="mono"></span>
+    <label>Did you drink the soup or gravy?<select onchange="ADD.liquid=this.value;renderModal()">${[["none","No liquid — dry cooked"],["clear","Yes, a thin clear soup"],["concentrated","Yes, a thick boiled-down broth"],["gravy","Yes, a thick rempah or seafood gravy"]].map(([v,l])=>`<option value="${v}" ${ADD.liquid===v?'selected':''}>${l}</option>`).join("")}</select></label>
+    <label class="checkline"><input type="checkbox" ${ADD.checked?'checked':''} onchange="ADD.checked=this.checked"> I asked what went into it</label>
+    <label>Photo <span id="photoStatus"></span>
       <input type="file" accept="image/*" onchange="onPhoto(this)">
-      <span class="hint">Tap to choose Photo Library, Take Photo, or Browse.</span></label>
-    ${ADD.photoError?`<div class="alert red"><b>Photo not readable</b><p>${esc(ADD.photoError)}</p></div>`:""}
+      <span class="hint">Tap to take a photo or pick one from your library.</span></label>
+    ${ADD.photoError?`<div class="alert red"><b>Cannot read that photo</b><p>${esc(ADD.photoError)}</p></div>`:""}
     ${ADD.thumb?`<img class="thumb" src="data:image/jpeg;base64,${ADD.thumb}" alt="">`:""}
-    <button id="aiBtn" class="btn primary" onclick="runMealAI()" ${AI.ready()?"":"disabled title='Add API key under More → AI'"}>${ADD.ai?"Re-analyse with AI":"Analyse with AI"}${PENDING_IMG?" (photo)":""}</button>
+    <button id="aiBtn" class="btn primary" onclick="runMealAI()" ${AI.ready()?"":"disabled title='Add API key under More → AI'"}>${ADD.ai?"Ask again":"Ask the AI dietitian"}${PENDING_IMG?" about this photo":""}</button>
     ${renderAI(ADD.ai)}
-    <label>Foods <input class="search" placeholder="type to add…" oninput="pickList(this.value)"></label>
+    <label>Add the foods<input class="search" placeholder="Start typing a food" oninput="pickList(this.value)"></label>
     <div id="pick"></div>
     <div class="picked">${ADD.items.map(id=>`<span class="tag">${esc(FOOD[id]?.name||id)}<b onclick="ADD.items=ADD.items.filter(x=>x!=='${id}');renderModal()">×</b></span>`).join("")}</div>
-    <label>Note<textarea oninput="ADD.note=this.value">${esc(ADD.note||'')}</textarea></label>
-    <div class="rating"><b>Computed rating:</b> ${chip(r.rating,'rating')}<ul>${r.why.map(w=>`<li>${esc(w)}</li>`).join("")}</ul>${ADD.source?`<p class="sub">Logged rating was <b>${BANDS.rating[ADD.rating].l}</b>. Saving keeps the computed one.</p>`:''}</div>
-    <div class="mbtn"><button class="btn primary" onclick="saveMeal()">Save</button><button class="btn" onclick="closeModal()">Cancel</button>${ADD.source?'':`<button class="btn danger" onclick="delMeal()">Delete</button>`}</div>
+    <label>Your own notes<textarea oninput="ADD.note=this.value">${esc(ADD.note||'')}</textarea></label>
+    <div class="verdict"><b>Score for this meal:</b> ${chip(r.rating,'rating')}<ul>${r.why.map(w=>`<li>${esc(w)}</li>`).join("")}</ul>${ADD.source?`<p class="sub">During our conversation this was scored <b>${BANDS.rating[ADD.rating].l}</b>. If you save, the new score replaces it.</p>`:''}</div>
+    <div class="sheetbtns"><button class="btn primary" onclick="saveMeal()">Save</button><button class="btn" onclick="closeModal()">Cancel</button>${ADD.source?'':`<button class="btn warn" onclick="delMeal()">Delete</button>`}</div>
   </div>`;
   $("#modal").classList.add("open");
 }
 function pickList(q){ q=q.toLowerCase(); if(!q){$("#pick").innerHTML="";return;} const hits=FOODS.filter(f=>f.name.toLowerCase().includes(q)&&!ADD.items.includes(f.id)).slice(0,8);
   $("#pick").innerHTML=hits.map(f=>`<div class="hit" onclick="ADD.items.push('${f.id}');renderModal()">${esc(f.name)} <span class="cat">${esc(f.cat)}</span></div>`).join(""); }
-function saveMeal(){ if(!ADD.label.trim()){alert("Give the meal a label.");return;} const r=rateMeal(ADD); ADD.rating=r.rating; delete ADD.source;
+function saveMeal(){ if(!ADD.label.trim()){alert("Please say what you ate first.");return;} const r=rateMeal(ADD); ADD.rating=r.rating; delete ADD.source;
   const i=STATE.meals.findIndex(x=>x.id===ADD.id); if(i>=0) STATE.meals[i]=ADD; else STATE.meals.push(ADD); save(); closeModal(); route(); }
-function delMeal(){ if(!confirm("Delete this meal?")) return; STATE.meals=STATE.meals.filter(x=>x.id!==ADD.id); save(); closeModal(); route(); }
+function delMeal(){ if(!confirm("Delete this meal for good?")) return; STATE.meals=STATE.meals.filter(x=>x.id!==ADD.id); save(); closeModal(); route(); }
 function closeModal(){ $("#modal").classList.remove("open"); $("#modal").innerHTML=""; }
 
 // ---------- EXPORT / IMPORT ----------
 function exportJSON(){ const b=new Blob([JSON.stringify(STATE,null,2)],{type:"application/json"}); const a=document.createElement("a"); a.href=URL.createObjectURL(b); a.download=`mealtrend-${new Date().toISOString().slice(0,10)}.json`; a.click(); }
-function importJSON(inp){ const f=inp.files[0]; if(!f) return; const rd=new FileReader(); rd.onload=()=>{ try{ const s=JSON.parse(rd.result); if(!s.meals) throw 0; STATE=s; save(); route(); alert("Imported "+s.meals.length+" meals."); }catch(e){ alert("Not a valid MealTrend export."); } }; rd.readAsText(f); }
+function importJSON(inp){ const f=inp.files[0]; if(!f) return; const rd=new FileReader(); rd.onload=()=>{ try{ const s=JSON.parse(rd.result); if(!s.meals) throw 0; STATE=s; save(); route(); alert("Loaded "+s.meals.length+" meals."); }catch(e){ alert("That file is not a MealTrend backup."); } }; rd.readAsText(f); }
 
 // ---------- ROUTER ----------
-const TABS=[["dash","Home"],["log","Log"],["rank","Rank"],["lens","Advice"],["alerts","Alerts"],["lib","Library"],["set","More"]];
+const TABS=[["dash","Home"],["log","Meals"],["rank","Compare"],["lens","Advice"],["alerts","Warnings"],["lib","Foods"],["set","Settings"]];
 let RANKKIND="purine";
 function route(){
   const h=(location.hash||"#dash").slice(1);
@@ -744,7 +810,7 @@ function route(){
   let body="";
   if(h==="dash") body=viewDashboard();
   else if(h==="log") body=viewLog();
-  else if(h==="rank") body=`<div class="seg">${[["purine","Purine"],["gi","GI"],["sugar","Sugar"],["chol","Cholesterol"]].map(([k,l])=>`<button class="${RANKKIND===k?'on':''}" onclick="RANKKIND='${k}';route()">${l}</button>`).join("")}</div>`+viewRankings(RANKKIND);
+  else if(h==="rank") body=`<div class="seg">${[["purine","Purine"],["gi","Blood sugar"],["sugar","Sugar"],["chol","Cholesterol"]].map(([k,l])=>`<button class="${RANKKIND===k?'on':''}" onclick="RANKKIND='${k}';route()">${l}</button>`).join("")}</div>`+viewRankings(RANKKIND);
   else if(h==="lens") body=viewLenses();
   else if(h==="alerts") body=viewAlerts();
   else if(h==="lib") body=viewLibrary();
@@ -794,7 +860,13 @@ NON-NEGOTIABLE RULES
 6. Singapore hawker and home dishes vary by stall and kitchen. When an ingredient is conventional but unconfirmed (e.g. hae bee in laksa rempah, belacan in sambal, conpoy in a double-boiled soup), DO NOT assume it. State it as unconfirmed and put a specific question in "questions_to_ask". This user's answers to such questions have lowered the rating 4 times out of 4.
 7. Purine rating logic, in order: highest purine band among items → confirmed dried seafood or organ meat forces at least High → a gravy conventionally containing dried seafood (unconfirmed) forces at least Moderate → concentrated liquid or gravy consumed forces at least Moderate → clear gently-simmered stock: rating follows the solids → dry-cooked with no dried seafood: cap at Low unless a High-band item is present.
 8. Glycaemic reasoning: GI is per reference food; composite hawker dishes rarely have a tested value. Composition matters more than substitution — in one Singapore study plain white rice measured 96 and the same rice with oil, chicken and vegetables measured 50 [white_rice][rice_oil_chicken_veg]. Say so when the plate has protein/fat/vegetables alongside starch.
-9. Be concrete and short. A working dietitian's note, not an essay. Prefer "leave a third of the gravy" over "reduce intake".
+9. WRITE FOR A 15-YEAR-OLD. This is a hard requirement, not a style preference.
+   - Short sentences. One idea each. Aim for 15 words or fewer.
+   - Everyday words. Say "how fast it raises your blood sugar", not "glycaemic response". Say "fat that is bad for your heart", not "saturated fatty acid profile". Say "salt", not "sodium chloride" — though "sodium" itself is fine, it is on every label.
+   - The first time you use a technical word in a note, explain it in the same sentence: "purine, a chemical your body turns into uric acid".
+   - Say what to DO, in plain terms: "leave a third of the gravy in the bowl", not "moderate consumption of the liquid component".
+   - No hedging phrases like "it may be prudent to consider". Say "do this" or "this is fine".
+   - Never use these words without explaining them: glycaemic, postprandial, purine, urate, lipid, sodium load, extraction, bioavailability.
 10. Return ONLY valid JSON matching the schema. No preamble, no markdown fences.
 
 GUIDELINES (cite by id)
@@ -950,7 +1022,7 @@ function fileToResized(file, maxPx, quality){
 let PENDING_IMG=null; // full-res base64 for the API call; not persisted
 async function onPhoto(inp){
   const f=inp.files[0]; if(!f) return;
-  const st=$("#photoStatus"); if(st) st.textContent="Reading photo\u2026";
+  const st=$("#photoStatus"); if(st) st.textContent="Reading the photo…";
   try{
     PENDING_IMG = await fileToResized(f, 1280, 0.82);
     ADD.thumb   = await fileToResized(f, 420, 0.6);
@@ -961,12 +1033,12 @@ async function onPhoto(inp){
   renderModal();
 }
 async function runMealAI(){
-  if(!AI.ready()){ alert("Add your API key under More \u2192 AI. It stays on this device."); return; }
-  if(!PENDING_IMG && !ADD.items.length && !ADD.label.trim()){ alert("Add a photo, pick some foods, or type a label first \u2014 there is nothing to analyse."); return; }
-  const btn=$("#aiBtn"); btn.disabled=true; btn.textContent="Analysing…";
+  if(!AI.ready()){ alert("Add your API key in Settings first. It stays on this phone."); return; }
+  if(!PENDING_IMG && !ADD.items.length && !ADD.label.trim()){ alert("Add a photo, pick some foods, or type what you ate first."); return; }
+  const btn=$("#aiBtn"); btn.disabled=true; btn.textContent="Thinking…";
   try{
     const r=await AI.analyseMeal(ADD, PENDING_IMG, "image/jpeg");
-    if(r.parseError){ ADD.ai={error: r.truncated ? "Response was cut off before the JSON closed, twice. Try again, or shorten the meal (fewer items)." : "Model returned something that isn't a JSON object.", raw:r.raw}; }
+    if(r.parseError){ ADD.ai={error: r.truncated ? "The AI ran out of room to finish its answer, twice. Try again, or pick fewer foods." : "The AI replied in the wrong format. Try again.", raw:r.raw}; }
     else { ADD.ai=r.json; ADD.ai.model=AI.model(); ADD.ai.at=new Date().toISOString(); ADD.ai.usage=r.usage; ADD.ai.searches=r.searches;
       // adopt identified items the user hasn't already added, when they map to the library
       (ADD.ai.identified_items||[]).forEach(it=>{ if(it.library_id && FOOD[it.library_id] && !ADD.items.includes(it.library_id) && it.confidence>=60) ADD.items.push(it.library_id); });
@@ -978,60 +1050,60 @@ async function runMealAI(){
 }
 async function runLogAI(){
   if(!AI.ready()){ alert("Add your API key under More → AI."); return; }
-  const box=$("#reviewBox"); box.innerHTML=`<p class="sub">Reviewing ${STATE.meals.length} meals…</p>`;
+  const box=$("#reviewBox"); box.innerHTML=`<p class="sub">Reading all ${STATE.meals.length} meals…</p>`;
   try{ const r=await AI.reviewLog(); if(r.parseError) throw new Error("Model returned non-JSON: "+r.raw.slice(0,200));
     STATE.review={...r.json, model:AI.model(), at:new Date().toISOString(), usage:r.usage}; save(); box.innerHTML=renderReview(STATE.review);
   }catch(e){ box.innerHTML=`<p class="alert red">${esc(e.message)}</p>`; }
 }
 function renderAI(ai){
   if(!ai) return "";
-  if(ai.error) return `<div class="aibox err"><b>AI analysis failed</b><p>${esc(ai.error)}</p>${ai.raw?`<pre>${esc(ai.raw.slice(0,600))}</pre>`:""}</div>`;
+  if(ai.error) return `<div class="ai failed"><b>The AI could not finish</b><p>${esc(ai.error)}</p>${ai.raw?`<pre>${esc(ai.raw.slice(0,600))}</pre>`:""}</div>`;
   const li=a=>(a||[]).map(x=>`<li>${esc(x)}</li>`).join("");
   const cites=c=>(c||[]).length?`<span class="cites">${(c||[]).map(esc).join(" ")}</span>`:"";
-  return `<div class="aibox">
-    <div class="aih"><b>AI dietitian note</b><span class="mono">${esc(ai.model||"")}</span></div>
-    <p class="overall">${esc(ai.overall||"")}</p>
-    ${ai.identified_items?.length?`<div class="aisec"><b>Identified</b> ${ai.identified_items.map(i=>`<span class="tag">${esc(i.name)}${i.library_id?"":" <em>(not in library)</em>"} <span class="mono">${i.confidence}%</span></span>`).join("")}</div>`:""}
-    ${ai.headline_axis?`<div class="aisec hl"><b>Headline</b> <span class="tag hlx">${esc(ai.headline_axis)}</span> ${esc(ai.headline_why||"")}</div>`:""}
-    ${ai.nutrients?.length?`<div class="aisec"><b>Nutrients</b><table class="ntab"><tr><th>Nutrient</th><th>Value</th><th>Basis</th><th>Conf</th></tr>${ai.nutrients.map(n=>`<tr class="${n.basis==="not available"?"navail":""}"><td>${esc(n.nutrient)}</td><td class="mono">${esc(n.value)}</td><td>${n.url?`<a href="${esc(n.url)}" target="_blank" rel="noopener">${esc(n.basis)}</a>`:esc(n.basis)}${n.source?`<span class="nsrc">${esc(n.source)}</span>`:""}</td><td class="mono">${n.confidence??"-"}</td></tr>${n.note?`<tr class="nnote"><td colspan="4">${esc(n.note)}</td></tr>`:""}`).join("")}</table></div>`:""}
-    <div class="aisec"><b>Purine</b> ${chip(ai.purine?.rating,'rating')} <span>${esc(ai.purine?.rationale||"")}</span> ${cites(ai.purine?.cites)}</div>
-    <div class="aisec"><b>Glycaemic</b> ${ai.glycaemic?.band&&ai.glycaemic.band!=="not available"?chip(ai.glycaemic.band==="medium"?"med":ai.glycaemic.band,'gi'):'<span class="na">not available</span>'} <span>${esc(ai.glycaemic?.rationale||"")}</span> ${cites(ai.glycaemic?.cites)}</div>
-    ${ai.sugar?.note?`<div class="aisec"><b>Sugar</b> ${esc(ai.sugar.note)} ${cites(ai.sugar.cites)}</div>`:""}
-    ${ai.lipids?.note?`<div class="aisec"><b>Lipids</b> ${esc(ai.lipids.note)} ${cites(ai.lipids.cites)}</div>`:""}
-    ${ai.sodium_satfat?`<div class="aisec"><b>Sodium / sat fat</b> ${esc(ai.sodium_satfat)}</div>`:""}
-    ${ai.questions_to_ask?.length?`<div class="aisec ask"><b>Ask before assuming</b><ul>${li(ai.questions_to_ask)}</ul></div>`:""}
-    ${ai.what_to_change?.length?`<div class="aisec"><b>Change</b><ul>${li(ai.what_to_change)}</ul></div>`:""}
-    ${ai.what_is_fine?.length?`<div class="aisec"><b>Fine as is</b><ul>${li(ai.what_is_fine)}</ul></div>`:""}
-    ${ai.not_available?.length?`<div class="aisec na"><b>Not available</b><ul>${li(ai.not_available)}</ul></div>`:""}
-    ${ai.searches?.length?`<div class="aisec"><b>Searched</b> ${ai.searches.map(q=>`<span class="tag">${esc(q)}</span>`).join("")}</div>`:""}
-    <p class="disc">Library figures are fixed and sourced. Searched figures were retrieved live — check the links. Aggregator sites are undisclosed-methodology estimates, not lab data. Not a licensed dietitian. Not a diagnosis.</p>
+  return `<div class="ai">
+    <div class="who"><b>AI dietitian note</b><span class="mono">${esc(ai.model||"")}</span></div>
+    <p class="summary">${esc(ai.overall||"")}</p>
+    ${ai.identified_items?.length?`<div class="part"><b>Identified</b> ${ai.identified_items.map(i=>`<span class="tag">${esc(i.name)}${i.library_id?"":" <em>(not in library)</em>"} <span class="mono">${i.confidence}%</span></span>`).join("")}</div>`:""}
+    ${ai.headline_axis?`<div class="part main"><b>The main thing here</b> <span class="status s-moderate">${esc(ai.headline_axis)}</span> ${esc(ai.headline_why||"")}</div>`:""}
+    ${ai.nutrients?.length?`<div class="part"><b>What is in it</b><table class="ntab"><tr><th>Nutrient</th><th>Amount</th><th>Where from</th><th>Sure?</th></tr>${ai.nutrients.map(n=>`<tr class="${n.basis==="not available"?"none":""}"><td>${esc(n.nutrient)}</td><td class="mono">${esc(n.value)}</td><td>${n.url?`<a href="${esc(n.url)}" target="_blank" rel="noopener">${esc(n.basis)}</a>`:esc(n.basis)}${n.source?`<span class="where">${esc(n.source)}</span>`:""}</td><td class="mono">${n.confidence!=null?n.confidence+"%":"—"}</td></tr>${n.note?`<tr class="rownote"><td colspan="4">${esc(n.note)}</td></tr>`:""}`).join("")}</table></div>`:""}
+    <div class="part"><b>Purine</b> ${chip(ai.purine?.rating,'rating')} <span>${esc(ai.purine?.rationale||"")}</span> ${cites(ai.purine?.cites)}</div>
+    <div class="part"><b>Blood sugar</b> ${ai.glycaemic?.band&&ai.glycaemic.band!=="not available"?chip(ai.glycaemic.band==="medium"?"med":ai.glycaemic.band,'gi'):'<span class="nodata">No data</span>'} <span>${esc(ai.glycaemic?.rationale||"")}</span> ${cites(ai.glycaemic?.cites)}</div>
+    ${ai.sugar?.note?`<div class="part"><b>Sugar</b> ${esc(ai.sugar.note)} ${cites(ai.sugar.cites)}</div>`:""}
+    ${ai.lipids?.note?`<div class="part"><b>Fats</b> ${esc(ai.lipids.note)} ${cites(ai.lipids.cites)}</div>`:""}
+    ${ai.sodium_satfat?`<div class="part"><b>Salt and heart fat</b> ${esc(ai.sodium_satfat)}</div>`:""}
+    ${ai.questions_to_ask?.length?`<div class="part ask"><b>Ask before you assume</b><ul>${li(ai.questions_to_ask)}</ul></div>`:""}
+    ${ai.what_to_change?.length?`<div class="part"><b>Change this</b><ul>${li(ai.what_to_change)}</ul></div>`:""}
+    ${ai.what_is_fine?.length?`<div class="part"><b>This part is fine</b><ul>${li(ai.what_is_fine)}</ul></div>`:""}
+    ${ai.not_available?.length?`<div class="part"><b>No data for these</b><ul>${li(ai.not_available)}</ul></div>`:""}
+    ${ai.searches?.length?`<div class="part"><b>Looked up online</b> ${ai.searches.map(q=>`<span class="tag">${esc(q)}</span>`).join("")}</div>`:""}
+    <p class="disc">Numbers marked "library" are fixed and come from published research. Numbers marked "searched" were looked up just now — click the link and check them. Calorie-counting websites are guesses, not lab tests. This is written by an AI, not a real dietitian, and it cannot diagnose you.</p>
   </div>`;
 }
 function renderReview(r){
   if(!r) return "";
   const cites=c=>(c||[]).length?`<span class="cites">${(c||[]).map(esc).join(" ")}</span>`:"";
-  return `<div class="aibox">
-    <div class="aih"><b>Dietitian review</b><span class="mono">${esc(r.model||"")} · ${(r.at||"").slice(0,10)}</span></div>
-    <p class="overall">${esc(r.headline||"")}</p>
-    <h3>Patterns</h3>${(r.patterns||[]).map(p=>`<div class="rec"><b>${esc(p.pattern)}</b><p>${esc(p.evidence)}</p>${cites(p.cites)}</div>`).join("")}
-    <h3>Top risks</h3>${(r.top_risks||[]).map(p=>`<div class="rec less"><b>${esc(p.risk)}</b><p>${esc(p.why)}</p><p><b>Do:</b> ${esc(p.action)}</p>${cites(p.cites)}</div>`).join("")}
-    <h3>Top wins</h3>${(r.top_wins||[]).map(p=>`<div class="rec more"><b>${esc(p.win)}</b><p>${esc(p.why)}</p>${cites(p.cites)}</div>`).join("")}
-    ${r.swaps?.length?`<h3>Swaps</h3>${r.swaps.map(s=>`<div class="rec"><b>${esc(s.from)} → ${esc(s.to)}</b><p>${esc(s.why)}</p></div>`).join("")}`:""}
-    ${r.open_questions?.length?`<h3>Open questions</h3><ul class="sub">${r.open_questions.map(q=>`<li>${esc(q)}</li>`).join("")}</ul>`:""}
-    ${r.test_recommendation?`<div class="rec"><b>Test</b><p>${esc(r.test_recommendation)}</p></div>`:""}
-    ${r.limits?.length?`<h3>Limits of this review</h3><ul class="sub">${r.limits.map(q=>`<li>${esc(q)}</li>`).join("")}</ul>`:""}
-    <p class="disc">Generated by a language model constrained to the food library and cited guidelines. Not a licensed dietitian. Not a diagnosis.</p>
+  return `<div class="ai">
+    <div class="who"><b>Review of all your meals</b><span class="mono">${esc(r.model||"")} · ${(r.at||"").slice(0,10)}</span></div>
+    <p class="summary">${esc(r.headline||"")}</p>
+    <h3>Patterns I can see</h3>${(r.patterns||[]).map(p=>`<div class="tip"><b>${esc(p.pattern)}</b><p>${esc(p.evidence)}</p>${cites(p.cites)}</div>`).join("")}
+    <h3>Biggest things to fix</h3>${(r.top_risks||[]).map(p=>`<div class="tip bad"><b>${esc(p.risk)}</b><p>${esc(p.why)}</p><p><b>Do this:</b> ${esc(p.action)}</p>${cites(p.cites)}</div>`).join("")}
+    <h3>Things you are doing well</h3>${(r.top_wins||[]).map(p=>`<div class="tip good"><b>${esc(p.win)}</b><p>${esc(p.why)}</p>${cites(p.cites)}</div>`).join("")}
+    ${r.swaps?.length?`<h3>Easy swaps</h3>${r.swaps.map(s=>`<div class="tip"><b>${esc(s.from)} → ${esc(s.to)}</b><p>${esc(s.why)}</p></div>`).join("")}`:""}
+    ${r.open_questions?.length?`<h3>Things worth finding out</h3><ul class="sub">${r.open_questions.map(q=>`<li>${esc(q)}</li>`).join("")}</ul>`:""}
+    ${r.test_recommendation?`<div class="tip"><b>Get this checked</b><p>${esc(r.test_recommendation)}</p></div>`:""}
+    ${r.limits?.length?`<h3>What this review cannot tell you</h3><ul class="sub">${r.limits.map(q=>`<li>${esc(q)}</li>`).join("")}</ul>`:""}
+    <p class="disc">Written by an AI using the food list and health guidelines in this app. It is not a real dietitian and it cannot diagnose you.</p>
   </div>`;
 }
-function saveAISettings(){ STATE.settings=STATE.settings||{}; STATE.settings.apiKey=$("#apiKey").value.trim(); STATE.settings.model=$("#aiModel").value.trim()||"claude-sonnet-5"; save(); alert("Saved on this device."); }
+function saveAISettings(){ STATE.settings=STATE.settings||{}; STATE.settings.apiKey=$("#apiKey").value.trim(); STATE.settings.model=$("#aiModel").value.trim()||"claude-sonnet-5"; save(); alert("Saved on this phone."); }
 function viewAISettings(){
   const s=STATE.settings||{};
   return `<h2>AI dietitian</h2>
-  <p class="sub">Bring your own Anthropic API key. It is stored in this browser's localStorage only — never in the repo, never sent anywhere except api.anthropic.com. Anyone with access to this device can read it. Do not paste it into a shared computer.</p>
-  <label class="fld">API key<input id="apiKey" type="password" value="${esc(s.apiKey||"")}" placeholder="sk-ant-…"></label>
-  <label class="fld">Model<input id="aiModel" value="${esc(s.model||"claude-sonnet-5")}"></label>
+  <p class="sub">You need your own Anthropic API key for the photo analysis and the meal review. The key is saved in this browser only. It is never uploaded anywhere except to Anthropic when you ask a question. Anyone who picks up this phone and opens the browser tools can read it, so do not do this on a shared computer.</p>
+  <label>API key<input id="apiKey" type="password" value="${esc(s.apiKey||"")}" placeholder="sk-ant-…"></label>
+  <label>Which AI model<input id="aiModel" value="${esc(s.model||"claude-sonnet-5")}"></label>
   <button class="btn primary" onclick="saveAISettings()">Save</button>
-  <p class="sub">Each meal analysis with a photo costs a few cents. The model is instructed to use only the food library's figures and to answer "not available" otherwise — but it is still a language model, and this app's own history includes errors that structure alone did not prevent. Treat its output as a draft note from a well-briefed assistant, not as clinical advice.</p>`;
+  <p class="sub">Each photo you analyse costs a few cents. The AI is told to use only the numbers in this app, to look things up online when a food is missing, and to say "no data" rather than guess. It still gets things wrong sometimes. Treat what it writes as a helpful first draft you check, not as medical advice.</p>`;
 }
 
 </script>
