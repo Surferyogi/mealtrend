@@ -213,6 +213,7 @@ const SRC = {
   SNAPCAL:"SnapCalorie.com — aggregator estimate, methodology undisclosed",
   VENTRICKLE:"Ventrickle × Munchi Pancakes, vendor-collaborated slice analysis (2024)",
   SHF:    "Singapore Heart Foundation 'Hearty' recipe — a MODIFIED healthier version, not a standard hawker product",
+  USDA_SAT:"USDA FoodData Central saturated fat values, via FoodStruct/Wikipedia sourced infoboxes",
   FSA:    "UK Food Standards Agency front-of-pack thresholds: sugar ≤5 low, 5–22.5 medium, >22.5 high per 100g"
 };
 
@@ -222,6 +223,9 @@ function pBand(v){ if(v==null) return null; if(v<50) return "vlow"; if(v<100) re
 function gBand(v){ if(v==null) return null; if(v<=55) return "low"; if(v<=69) return "med"; return "high"; }
 // Sugar bands (FSA)
 function sBand(v){ if(v==null) return null; if(v<=5) return "low"; if(v<=22.5) return "med"; return "high"; }
+// Saturated fat bands, UK FSA front-of-pack thresholds for solid foods:
+// low <=1.5 g, medium 1.5-5 g, high >5 g per 100 g.
+function satBand(v){ if(v==null) return null; if(v<=1.5) return "low"; if(v<=5) return "med"; return "high"; }
 
 // flags: dried_seafood (confirmed) | dried_seafood_likely (conventional, unconfirmed) | shellfish | organ | alcohol | sweetened | dairy | egg | plant_protein
 const FOODS = [
@@ -401,6 +405,18 @@ const FOODS = [
     purine:{v:null, note:"may include dried shiitake (380); not measured"}, gi:{v:null}, sugar:{v:null}, chol:{v:null} },
 ];
 
+// ---------- SATURATED FAT, g per 100 g. null everywhere else = not sourced. ----------
+const SATFAT = {
+  coconut_milk: { v:19.0, src:SRC.USDA_SAT+" — canned coconut milk, FDC 170173", conf:80, note:"Almost all of coconut fat is saturated. This is the biggest saturated-fat source in your log." },
+  pork_lard: { v:39.2, src:SRC.USDA_SAT+" — lard", conf:70, note:"Rendered pork fat. About 39% of it is saturated." },
+  salmon: { v:1.0, src:SRC.USDA_SAT+" — wild Atlantic, raw", conf:70, note:null },
+  milk: { v:1.0, src:SRC.USDA_SAT+" — low fat milk", conf:65, note:null },
+  peanut: { v:6.3, src:SRC.USDA_SAT+" — peanuts, raw", conf:70, note:"Mostly unsaturated fat, so the total fat number looks worse than it is." },
+  almond: { v:3.8, src:SRC.USDA_SAT+" — almonds, raw", conf:70, note:null },
+  tofu: { v:0.7, src:SRC.USDA_SAT+" — firm tofu", conf:60, note:null },
+  white_rice: { v:0.1, src:SRC.USDA_SAT+" — cooked white rice", conf:70, note:null },
+};
+
 // ---------- NUTRIENTS (per 100 g unless stated). null = not sourced. ----------
 // Only foods with a real retrieved figure get values. Everything else stays null.
 const NUTRI = {
@@ -415,13 +431,17 @@ const NUTRI = {
   }
 };
 
-FOODS.forEach(f=>{ f.n = NUTRI[f.id] || {}; });
+FOODS.forEach(f=>{
+  f.n = NUTRI[f.id] || {};
+  f.satfat = SATFAT[f.id] || { v:null };
+});
 
 FOODS.forEach(f=>{
   f.purine.band = pBand(f.purine.v);
   f.gi.band = f.gi.band || gBand(f.gi.v);
   if(f.id==="nasi_lemak") f.gi.band="high"; // HPB classification
   f.sugar.band = sBand(f.sugar.v);
+  if(f.satfat) f.satfat.band = satBand(f.satfat.v);
 });
 
 // GUIDELINE THRESHOLDS — each with source. null = no guideline threshold exists.
@@ -430,6 +450,8 @@ const GUIDE = {
   purine_window_days: { v:2, src:"Zhang Y et al. Ann Rheum Dis 2012;71:1448–53 — top quintile of 2-day purine intake, OR 4.76 for recurrent flare" },
   free_sugar_g: { ideal:25, max:50, src:"WHO 2015 free sugars guideline: <10% energy (≈50g at 2000 kcal), ideally <5% (≈25g)" },
   cholesterol_mg: { v:null, src:"Dietary Guidelines for Americans 2015–2020 removed the 300 mg/day limit; 2020–2025 advises 'as low as possible without compromising nutritional adequacy'. No hard threshold exists.", legacy:300 },
+  satfat_g: { max:22, src:"WHO and AHA: keep saturated fat under 10% of daily energy. At 2000 kcal that is about 22 g a day. AHA suggests under 6% (about 13 g) for people who need to lower LDL cholesterol.", note:"Cannot be totalled here — no meal was weighed." },
+  satfat_bands: { src:"UK Food Standards Agency front-of-pack limits: 1.5 g or less per 100 g is low, over 5 g per 100 g is high." },
   alcohol: { src:"Choi HK et al. Lancet 2004;363:1277–81 — beer strongest gout association; ACR 2020 conditionally recommends limiting alcohol" },
   gi_daily: { v:null, src:"No daily GI threshold exists in any guideline. Pattern flags only." }
 };
@@ -443,13 +465,13 @@ const GUIDE = {
 // rating: as assigned in the log — the app recomputes for new meals
 // ============================================================
 const SEED_MEALS = [
-  { seq:1,  date:null, slot:"brunch",    label:"Nasi lemak", items:["nasi_lemak","ikan_bilis","chicken_leg","egg","peanut","sambal","cucumber"], liquid:"none", checked:false, rating:"high",
+  { seq:1,  date:null, slot:"brunch",    label:"Nasi lemak", items:["nasi_lemak","coconut_milk","ikan_bilis","chicken_leg","egg","peanut","sambal","cucumber"], liquid:"none", checked:false, rating:"high",
     note:"Ikan bilis garnish — first of two the same day (flare day)" },
   { seq:2,  date:null, sameDayAs:1, slot:"dinner",    label:"Ikan bilis rice, fried chicken, herbal soup", items:["white_rice","ikan_bilis","chicken_leg","peanut","herbal_soup","leafy_greens","tomato","cucumber","sambal"], liquid:"clear", checked:false, rating:"high",
     note:"Second ikan bilis serving same day" },
   { seq:3,  date:null, slot:"lunch",     label:"Fried bee hoon + braised peanuts", items:["bee_hoon_fried","tau_pok","bean_sprouts","egg","peanut"], liquid:"none", checked:true, rating:"low",
     note:"Checked: no dried shrimp. Peanuts in sweetened braising liquid." },
-  { seq:4,  date:null, slot:"lunch",     label:"Laksa", items:["yellow_noodle","laksa_gravy","tau_pok","fish_paste","egg","bean_sprouts"], liquid:"gravy", checked:false, rating:"moderate",
+  { seq:4,  date:null, slot:"lunch",     label:"Laksa", items:["yellow_noodle","laksa_gravy","coconut_milk","tau_pok","fish_paste","egg","bean_sprouts"], liquid:"gravy", checked:false, rating:"moderate",
     note:"Hae bee rempah, coconut gravy, drunk" },
   { seq:5,  date:null, slot:"snack",     label:"Peanut pancake", items:["peanut_pancake"], liquid:"none", checked:false, rating:"low", note:"Sweetened" },
   { seq:6,  date:null, slot:"dinner",    label:"Chilli prawn + fried mantou", items:["shrimp_fresh","chilli_prawn_gravy","mantou_fried"], liquid:"gravy", checked:false, rating:"high",
@@ -459,14 +481,14 @@ const SEED_MEALS = [
   { seq:9,  date:null, slot:"lunch",     label:"Yong tau fu, clear soup", items:["tofu","tau_pok","fish_paste","leafy_greens","clear_ytf_stock"], liquid:"clear", checked:false, rating:"low",
     note:"Broth meal rated Low — thin stock, house stock unknown" },
   { seq:10, date:null, slot:"breakfast", label:"Grilled salmon, plums, coffee", items:["salmon","plum","coffee_milk"], liquid:"none", checked:false, rating:"low", note:"Pan-seared, nothing leached" },
-  { seq:11, date:null, slot:"lunch",     label:"Yong tau fu in laksa gravy, no noodles", items:["tofu","tau_pok","leafy_greens","tomato","laksa_gravy"], liquid:"gravy", checked:false, rating:"moderate" },
+  { seq:11, date:null, slot:"lunch",     label:"Yong tau fu in laksa gravy, no noodles", items:["tofu","tau_pok","leafy_greens","tomato","laksa_gravy","coconut_milk"], liquid:"gravy", checked:false, rating:"moderate" },
   { seq:12, date:null, slot:"lunch",     label:"Chicken thigh, rice, tempeh, long beans", items:["chicken_leg","white_rice","tempeh","long_beans","cucumber","sambal"], liquid:"none", checked:true, rating:"low",
     note:"Checked: tempeh, not ikan bilis. ≈ rice+oil+chicken+veg study arm (GI 50)" },
   { seq:13, date:null, slot:"lunch",     label:"Mee siam, Bibik Violet", items:["bee_hoon","mee_siam_gravy","tau_pok","egg","bean_sprouts","shrimp_fresh"], liquid:"gravy", checked:false, rating:"moderate",
     note:"Tamarind-taucheo gravy; hae bee likely; two prawns" },
   { seq:14, date:null, slot:"breakfast", label:"Soft-boiled eggs, sourdough, apple, coffee", items:["egg","sourdough_wheat","apple","coffee_milk"], liquid:"none", checked:false, rating:"low" },
   { seq:15, date:null, slot:"lunch",     label:"Bone soup, carrot, lotus, peanut", items:["pork_ribs","clear_pork_stock","carrot","lotus_root","peanut"], liquid:"clear", checked:false, rating:"moderate" },
-  { seq:16, date:null, slot:"brunch",    label:"Curry chicken noodle + Coke Zero", items:["chicken_breast","yellow_noodle","curry_gravy_chicken","tau_pok","coke_zero"], liquid:"gravy", checked:false, rating:"moderate",
+  { seq:16, date:null, slot:"brunch",    label:"Curry chicken noodle + Coke Zero", items:["chicken_breast","yellow_noodle","curry_gravy_chicken","coconut_milk","tau_pok","coke_zero"], liquid:"gravy", checked:false, rating:"moderate",
     note:"Rempah unconfirmed. Drink: zero sugar." },
   { seq:17, date:null, slot:"breakfast", label:"Soy sauce eggs, sourdough, coffee", items:["egg","sourdough_wheat","coffee_milk"], liquid:"none", checked:false, rating:"low" },
   { seq:18, date:null, slot:"breakfast", label:"Thosai, prata, vegetable curry, sugarless teh tarik", items:["thosai","prata","vegetable_curry","teh_tarik_kosong"], liquid:"none", checked:true, rating:"low",
@@ -487,13 +509,14 @@ const SEED_MEALS = [
 // MEALTREND — app logic
 // Version stamp convention: vYYYY:MMM:DD-HH:MM (Asia/Singapore)
 // ============================================================
-const VERSION = "v2026:SEP:08-04:40"; // HH:MM approximate — device clock unavailable; set on first edit
+const VERSION = "v2026:SEP:08-05:20"; // HH:MM approximate — device clock unavailable; set on first edit
 
 const LS_KEY = "mealtrend.v1";
 const BANDS = {
   purine: { vlow:{l:"Very little",c:"#1E4F45"}, low:{l:"A little",c:"#3E7A4E"}, mod:{l:"Some",c:"#A6741A"}, high:{l:"A lot",c:"#C8402F"}, vhigh:{l:"A huge amount",c:"#8E2A1E"} },
   gi:     { low:{l:"Slow",c:"#3E7A4E"}, med:{l:"Medium",c:"#A6741A"}, high:{l:"Fast",c:"#C8402F"} },
   sugar:  { low:{l:"Low",c:"#3E7A4E"}, med:{l:"Medium",c:"#A6741A"}, high:{l:"High",c:"#C8402F"} },
+  satfat: { low:{l:"Low",c:"#3E7A4E"}, med:{l:"Medium",c:"#A6741A"}, high:{l:"High",c:"#C8402F"} },
   rating: { vlow:{l:"Very safe",c:"#1E4F45"}, low:{l:"Fine",c:"#3E7A4E"}, moderate:{l:"Watch this",c:"#A6741A"}, high:{l:"Be careful",c:"#C8402F"} }
 };
 const RANK = { vlow:0, low:1, moderate:2, mod:2, high:3, vhigh:4 };
@@ -552,10 +575,12 @@ function analyse(meals){
   const dairy = meals.filter(m=>m.items.some(id=>FOOD[id]?.flags?.includes("dairy"))).length;
   const egg = meals.filter(m=>m.items.some(id=>FOOD[id]?.flags?.includes("egg"))).length;
   const plant = meals.filter(m=>m.items.some(id=>FOOD[id]?.flags?.includes("plant_protein"))).length;
+  const satHigh = meals.filter(m=>m.items.some(id=>FOOD[id]?.satfat?.band==="high")).length;
+  const coconut = meals.filter(m=>m.items.some(id=>["coconut_milk","laksa_gravy","nasi_lemak","curry_gravy_chicken"].includes(id))).length;
   const driedSea = meals.filter(m=>m.items.some(id=>FOOD[id]?.flags?.includes("dried_seafood"))).length;
   const alcohol = meals.filter(m=>m.items.some(id=>FOOD[id]?.flags?.includes("alcohol"))).length;
   const organ = meals.filter(m=>m.items.some(id=>FOOD[id]?.flags?.includes("organ"))).length;
-  return { n, byRating, liquid:liquid.length, dry:dry.length, liquidElevated, dryLow, dryNoSea:dryNoSea.length, dryNoSeaLow, gravy, clear, checked, highGI, starch, sweet, dairy, egg, plant, driedSea, alcohol, organ, catCount };
+  return { n, byRating, liquid:liquid.length, dry:dry.length, liquidElevated, dryLow, dryNoSea:dryNoSea.length, dryNoSeaLow, satHigh, coconut, gravy, clear, checked, highGI, starch, sweet, dairy, egg, plant, driedSea, alcohol, organ, catCount };
 }
 
 // ---------- ALERTS ----------
@@ -578,6 +603,8 @@ function alerts(meals){
     if(has(m,"organ")) out.push({lvl:"red", seq:m.seq, t:"Organ meat", d:"Liver 285–312 mg/100g, high band. ACR 2020 conditionally recommends limiting.", src:"ACR 2020 gout guideline"});
     const conc = w2.filter(x=>x.liquid==="gravy"||x.liquid==="concentrated").length;
     if(conc>=2 && (m.liquid==="gravy"||m.liquid==="concentrated")) out.push({lvl:"amber", seq:m.seq, t:"Two concentrated gravies within 48 hours", d:"The 2-day intake window is what predicted recurrent flares in Zhang 2012 (top quintile OR 4.76). Leave a third of the gravy.", src:GUIDE.purine_window_days.src});
+    const satHi = w1.filter(x=>x.items.some(id=>FOOD[id]?.satfat?.band==="high")).length;
+    if(satHi>=2 && m.items.some(id=>FOOD[id]?.satfat?.band==="high")) out.push({lvl:"amber", seq:m.seq, t:"Two high saturated-fat meals in one day", d:"Coconut milk is 19 g of saturated fat per 100 g. Pork lard is 39 g. A day's target is about 22 g in total. This is the fat that raises the cholesterol that clogs arteries.", src:GUIDE.satfat_g.src});
     if(has(m,"alcohol")) out.push({lvl:"amber", seq:m.seq, t:"Alcohol", d:"Beer had the strongest gout association of any beverage in Choi 2004 — despite near-zero sugar. Mechanism is ethanol, not purine.", src:GUIDE.alcohol.src});
     const sw = w1.filter(x=>has(x,"sweetened")).length;
     if(sw>=2 && has(m,"sweetened")) out.push({lvl:"amber", seq:m.seq, t:"Two sweetened items within a day", d:"WHO: free sugars <10% energy (≈50 g), ideally <5% (≈25 g). Only two items in the library carry a measured sugar figure — this alert counts flags, not grams.", src:GUIDE.free_sugar_g.src});
@@ -603,6 +630,7 @@ function recommend(A){
   if(A.gravy) less.push({t:"Thick gravy you drink", d:`${A.gravy} meals, which is ${pct(A.gravy)}% of everything. Leave a third of the gravy in the bowl. The tofu, greens and noodles were fine every single time. It is the liquid.`, src:"Your own meal log"});
   less.push({t:"Prawns in prawn gravy with fried bun", d:"Three problems in one dish. The prawn itself, the gravy made from prawn shells, and a fried bun that soaks the gravy up. Eat the prawn, skip the bun.", src:"Kaneko 2014"});
   if(A.sweet) less.push({t:"Sweet sauces and dips", d:`${A.sweet} of your meals had something sweet in the sauce. Mee siam, sweet and sour, sambal, chilli prawn. Only the mooncake has a real sugar number on the packet.`, src:"WHO 2015 sugar guideline"});
+  if(A.satHigh) less.push({t:"Coconut gravy and pork lard", d:`${A.satHigh} of your meals had a food that is high in saturated fat. Coconut milk is 19 g per 100 g. Pork lard is 39 g. Your whole day should stay under about 22 g. This is the fat that clogs arteries, and it matters more for your heart than cholesterol in food does.`, src:"WHO and AHA saturated fat guidance"});
   less.push({t:"Two risky meals in one day", d:"Your sore toe came after two ikan bilis meals hours apart. What matters is the whole two days, not one plate. Spread the risky ones out.", src:"Zhang 2012"});
   return {more, less};
 }
@@ -648,8 +676,8 @@ const $=s=>document.querySelector(s);
 function chip(band,kind){ const b=BANDS[kind]&&BANDS[kind][band];
   if(!b) return `<span class="status s-none">No data</span>`;
   const cls = kind==="rating" ? "s-"+band : (RANK[band]>=3?"s-high":RANK[band]>=2?"s-moderate":RANK[band]>=1?"s-low":"s-vlow");
-  const cls2 = kind==="gi" ? (band==="high"?"s-high":band==="med"?"s-moderate":"s-low")
-             : kind==="sugar" ? (band==="high"?"s-high":band==="med"?"s-moderate":"s-low") : cls;
+  const cls2 = (kind==="gi"||kind==="sugar"||kind==="satfat")
+             ? (band==="high"?"s-high":band==="med"?"s-moderate":"s-low") : cls;
   return `<span class="status ${cls2}">${b.l}</span>`; }
 function val(x,unit=""){ return x==null?`<span class="nodata">No data</span>`:`<b>${x}${unit}</b>`; }
 
@@ -704,7 +732,7 @@ function viewLog(){
 function viewRankings(kind){
   const eaten=new Set(STATE.meals.flatMap(m=>m.items));
   const key=kind;
-  const bandKind={purine:"purine",gi:"gi",sugar:"sugar",chol:null}[kind];
+  const bandKind={purine:"purine",gi:"gi",sugar:"sugar",satfat:"satfat",chol:null}[kind];
   let rows=FOODS.filter(f=>eaten.has(f.id)).map(f=>({f, v:f[key].v, band:f[key].band, conf:f[key].conf, src:f[key].src, note:f[key].note}));
 
   // Collapse variants of one food when this axis gives them the SAME number.
@@ -722,11 +750,12 @@ function viewRankings(kind){
   const noV=rows.filter(r=>r.v==null);
   const colorFor=r=>{ if(kind==="chol") return r.v>=300?"#C8402F":r.v>=100?"#A6741A":"#3E7A4E";
     return (BANDS[bandKind][r.band]||{c:"#6B6055"}).c; };
-  const title={purine:"Purine in the foods you eat",gi:"How fast these foods raise blood sugar",sugar:"Sugar in the foods you eat",chol:"Cholesterol in the foods you eat"}[kind];
+  const title={purine:"Purine in the foods you eat",gi:"How fast these foods raise blood sugar",sugar:"Sugar in the foods you eat",satfat:"Saturated fat in the foods you eat",chol:"Cholesterol in the foods you eat"}[kind];
   const note={
     purine:"Purine is a chemical in food. Your body turns it into uric acid. Too much uric acid can cause gout. Numbers are milligrams per 100 grams of food. <b>The bars use a squashed scale</b> — ikan bilis is so far ahead that on a normal scale everything else would be an invisible sliver. Read the numbers, not just the bar lengths.",
     gi:"Glycemic index means how fast a food pushes up your blood sugar. Under 55 is slow. 56 to 69 is medium. 70 and above is fast. Slower is easier on your body.",
     sugar:"Grams of sugar per 100 grams of food. Under 5 is low. Over 22.5 is high. These are the UK food label limits.",
+    satfat:"Grams of saturated fat per 100 grams. This is the fat that raises your LDL cholesterol, the kind that clogs arteries. <b>1.5 g or less per 100 g is low. Over 5 g is high.</b> Those are the UK food label limits. A rough daily target is about 22 grams. <b>Only 8 foods here have a real measured number</b> — most Singapore dishes have never been tested for this.",
     chol:"Milligrams of cholesterol per 100 grams. <b>There is no daily limit any more</b> — the old 300 mg rule was dropped in 2015. This list is for comparing foods, not for worrying. Saturated fat matters more for your heart, and this app does not track that yet."
   }[kind];
   const merged=withV.filter(r=>r.merged).length;
@@ -758,11 +787,12 @@ function viewLenses(){
     <li>What you eat <i>with</i> the rice matters more than swapping the rice. Plain rice scored 96. The same rice with oil, chicken and vegetables scored 50.</li>
     <li>Bee hoon is the slowest staple you eat, at 35. Nasi lemak is the fastest, at 70 to 100.</li>
     <li>There is no daily limit for glycemic index in any guideline. These are patterns, not rules.</li></ul>`)}
-  ${lens("Heart and cholesterol", "US Dietary Guidelines 2015-2020 and 2020-2025; AHA 2019",
-    `<ul><li><b>The old 300 mg daily cholesterol limit was dropped in 2015.</b> There is no daily limit now. That is why this app never sounds an alarm about cholesterol.</li>
-    <li>Saturated fat matters far more for your heart than cholesterol in food does. In your log it comes from pork lard, coconut milk and deep-fried food.</li>
-    <li>This app does not track saturated fat yet. That is a real gap.</li>
-    <li>Egg yolk looks alarming at 1,085 mg per 100 g, but one yolk weighs about 17 g. Four eggs is four yolks. That is a real amount, but it is the only food where cholesterol and purine point in opposite directions.</li></ul>`)}
+  ${lens("Heart and cholesterol", "US Dietary Guidelines 2015-2020 and 2020-2025; AHA 2019; WHO saturated fat guidance",
+    `<ul><li><b>Saturated fat is the one that matters for your heart.</b> It raises LDL, the cholesterol that clogs arteries. Aim for under about 22 grams a day.</li>
+    <li>Coconut milk is 19 g per 100 g, and ${A.coconut} of your meals had a coconut gravy or coconut rice. Pork lard is 39 g per 100 g. Those two are your main sources.</li>
+    <li><b>Cholesterol in food is a different thing, and the old 300 mg daily limit was dropped in 2015.</b> There is no daily limit now. That is why this app never sounds an alarm about it.</li>
+    <li>Only 8 foods in this app have a real saturated fat number. Most hawker dishes have never been measured. The AI can look one up for you when you analyse a meal.</li>
+    <li>Egg yolk looks alarming at 1,085 mg cholesterol per 100 g, but one yolk weighs about 17 g. Four eggs is four yolks. It is also the only food where cholesterol and purine point in opposite directions.</li></ul>`)}
   ${lens("Eating at hawker centres", "Singapore HPB; Henry 2021 Singapore and Malaysia studies",
     `<ul><li>You asked the cook or stall what went in ${A.checked} times. Every single time the answer made the meal <i>safer</i> than assumed. Keep asking.</li>
     <li>Gravies are the big unknown. Dried shrimp is normal in rempah, but nobody has confirmed it in your ${A.gravy} gravy meals.</li>
@@ -798,9 +828,9 @@ function viewLibrary(){
   <div id="lib">${libRows(FOODS)}</div>`;
 }
 function libRows(list){ return list.map(f=>`<div class="food"><div><span class="name">${esc(f.name)}</span> <span class="kind">${esc(f.cat)}</span></div>
-  <div class="vals"><span>Purine ${val(f.purine.v," mg")} ${chip(f.purine.band,'purine')}</span><span>Blood sugar speed ${val(f.gi.v)} ${chip(f.gi.band,'gi')}</span><span>Sugar ${val(f.sugar.v," g")} ${chip(f.sugar.band,'sugar')}</span><span>Cholesterol ${val(f.chol.v," mg")}</span></div>
+  <div class="vals"><span>Purine ${val(f.purine.v," mg")} ${chip(f.purine.band,'purine')}</span><span>Blood sugar speed ${val(f.gi.v)} ${chip(f.gi.band,'gi')}</span><span>Sugar ${val(f.sugar.v," g")} ${chip(f.sugar.band,'sugar')}</span><span>Cholesterol ${val(f.chol.v," mg")}</span><span>Saturated fat ${val(f.satfat&&f.satfat.v," g")} ${f.satfat?chip(f.satfat.band,'satfat'):""}</span></div>
   ${(f.flags||[]).length?`<div class="tags">${f.flags.map(x=>`<i>${x.replace(/_/g," ")}</i>`).join("")}</div>`:''}
-  <div class="from">${[f.purine,f.gi,f.sugar,f.chol].filter(x=>x.src||x.note).map(x=>`<div>${x.src?esc(x.src):''}${x.note?` <em>${esc(x.note)}</em>`:''}${x.conf!=null?` — ${x.conf}% sure`:''}</div>`).join("")}</div></div>`).join(""); }
+  <div class="from">${[f.purine,f.gi,f.sugar,f.chol,f.satfat||{}].filter(x=>x.src||x.note).map(x=>`<div>${x.src?esc(x.src):''}${x.note?` <em>${esc(x.note)}</em>`:''}${x.conf!=null?` — ${x.conf}% sure`:''}</div>`).join("")}</div></div>`).join(""); }
 function filterLib(q){ q=q.toLowerCase(); $("#lib").innerHTML=libRows(FOODS.filter(f=>f.name.toLowerCase().includes(q)||f.cat.includes(q))); }
 
 function viewSettings(){
@@ -814,7 +844,7 @@ function viewSettings(){
     <li>Photo analysis and the dietitian review need your own API key (above). Without it, everything else works.</li>
     <li>It does not back itself up. Everything is stored in this browser only. Export your data now and then.</li>
     <li>It cannot diagnose anything. Your swollen toe was never confirmed as gout by a doctor.</li>
-    <li>It has no cholesterol warning, because no health guideline sets a daily limit any more.</li>
+    <li>It has no cholesterol warning, because no health guideline sets a daily limit any more. It does warn about saturated fat, which does have a limit.</li>
   </ul>
   <h2>Where the numbers come from</h2><ul class="srclist">${Object.values(SRC).map(s=>`<li>${esc(s)}</li>`).join("")}<li>${esc(GUIDE.free_sugar_g.src)}</li><li>${esc(GUIDE.cholesterol_mg.src)}</li></ul>
   <p class="sub">App version ${VERSION}. The date is when this version was built.</p>`;
@@ -879,7 +909,7 @@ function route(){
   let body="";
   if(h==="dash") body=viewDashboard();
   else if(h==="log") body=viewLog();
-  else if(h==="rank") body=`<div class="seg">${[["purine","Purine"],["gi","Blood sugar"],["sugar","Sugar"],["chol","Cholesterol"]].map(([k,l])=>`<button class="${RANKKIND===k?'on':''}" onclick="RANKKIND='${k}';route()">${l}</button>`).join("")}</div>`+viewRankings(RANKKIND);
+  else if(h==="rank") body=`<div class="seg">${[["purine","Purine"],["gi","Blood sugar"],["satfat","Sat fat"],["sugar","Sugar"],["chol","Cholesterol"]].map(([k,l])=>`<button class="${RANKKIND===k?'on':''}" onclick="RANKKIND='${k}';route()">${l}</button>`).join("")}</div>`+viewRankings(RANKKIND);
   else if(h==="lens") body=viewLenses();
   else if(h==="alerts") body=viewAlerts();
   else if(h==="lib") body=viewLibrary();
@@ -910,8 +940,9 @@ const AI = {
     return FOODS.map(f=>{
       const p=f.purine.v==null?"n/a":f.purine.v+"mg"; const g=f.gi.v==null?(f.gi.band?f.gi.band+"(band)":"n/a"):f.gi.v;
       const s=f.sugar.v==null?"n/a":f.sugar.v+"g"; const c=f.chol.v==null?"n/a":f.chol.v+"mg";
+      const sf=f.satfat&&f.satfat.v!=null?` | satfat ${f.satfat.v}g/100g(${f.satfat.band})`:"";
       const n=f.n||{}; const nz=Object.entries(n).filter(([k,x])=>x&&x.v!=null).map(([k,x])=>`${k} ${x.v}${x.range?`(${x.range[0]}-${x.range[1]})`:""}`).join(" ");
-      return `${f.id} | ${f.name} | purine ${p} conf${f.purine.conf??"-"} | GI ${g} conf${f.gi.conf??"-"} | sugar/100g ${s} | chol/100g ${c}${nz?" | per100g: "+nz:""} | flags ${(f.flags||[]).join(",")||"-"}${f.purine.note?" | note: "+f.purine.note:""}${f.gi.note?" | gi-note: "+f.gi.note:""}${n.kcal?.note?" | kcal-note: "+n.kcal.note:""}`;
+      return `${f.id} | ${f.name} | purine ${p} conf${f.purine.conf??"-"} | GI ${g} conf${f.gi.conf??"-"} | sugar/100g ${s} | chol/100g ${c}${sf}${nz?" | per100g: "+nz:""} | flags ${(f.flags||[]).join(",")||"-"}${f.purine.note?" | note: "+f.purine.note:""}${f.gi.note?" | gi-note: "+f.gi.note:""}${n.kcal?.note?" | kcal-note: "+n.kcal.note:""}`;
     }).join("\n");
   },
 
@@ -926,7 +957,7 @@ NON-NEGOTIABLE RULES
 1c. Never invent a figure. "not available" remains a correct and expected answer.
 2. Cite the library id (e.g. [ikan_bilis]) or guideline id (e.g. [GUIDE:purine_window_days]) next to every figure or threshold you use.
 3. Never compute a daily purine total in mg. No meal has a weighed portion.
-4. Dietary cholesterol has NO guideline threshold (removed from US Dietary Guidelines 2015). Rank and note it; never alarm on it. Saturated fat and sodium DO have thresholds and matter more for cardiovascular risk — use them: [GUIDE:satfat] and [GUIDE:sodium].
+4. Dietary cholesterol has NO guideline threshold (removed from US Dietary Guidelines 2015). Rank and note it; never alarm on it. Saturated fat and sodium DO have thresholds and matter more for heart risk — use them: [GUIDE:satfat] and [GUIDE:sodium]. If a dish contains coconut milk, pork lard, deep-fried batter or ghee, say so and give the saturated fat figure if you have one. Only 8 foods in the library carry a measured saturated fat value; web_search for the rest rather than guessing.
 5. Do not diagnose. The podagra episode was never clinically confirmed. When relevant, say a serum urate test outranks any dietary inference.
 6. Singapore hawker and home dishes vary by stall and kitchen. When an ingredient is conventional but unconfirmed (e.g. hae bee in laksa rempah, belacan in sambal, conpoy in a double-boiled soup), DO NOT assume it. State it as unconfirmed and put a specific question in "questions_to_ask". This user's answers to such questions have lowered the rating 4 times out of 4.
 7. Purine rating logic, in order: highest purine band among items → confirmed dried seafood or organ meat forces at least High → a gravy conventionally containing dried seafood (unconfirmed) forces at least Moderate → concentrated liquid or gravy consumed forces at least Moderate → clear gently-simmered stock: rating follows the solids → dry-cooked with no dried seafood: cap at Low unless a High-band item is present.
@@ -949,6 +980,7 @@ GUIDELINES (cite by id)
 - GUIDE:acr2020 — FitzGerald JD et al. 2020 ACR gout guideline: dietary recommendations are conditional, low-to-very-low certainty; diet moves serum urate ~1.0–1.2 mg/dL.
 - GUIDE:choi2004 — Choi HK et al. NEJM 2004: meat and seafood raised incident gout; dairy lowered it; purine-rich vegetables neutral.
 - GUIDE:zhang2012_plant — Zhang Y et al. 2012: animal-source purine OR trend 2.41 vs plant 1.39 across quintiles.
+- GUIDE:satfat — WHO and AHA: saturated fat under 10% of energy, about 22 g/day at 2000 kcal; AHA suggests under 6% (about 13 g) for people lowering LDL. UK FSA labels: 1.5 g or less per 100 g is low, over 5 g per 100 g is high. Coconut milk is 19 g/100 g and pork lard 39 g/100 g — these are the two big sources in this user's food. Saturated fat matters MORE for heart risk than cholesterol in food does.
 - GUIDE:sodium — WHO: <2000 mg sodium/day (=5 g salt). Singapore HPB target 2000 mg/day; national average intake is roughly 3400 mg. Hawker food is the main contributor.
 - GUIDE:satfat — WHO/AHA: saturated fat <10% of energy (AHA <6% for those needing LDL lowering) ≈ 22 g/day at 2000 kcal. Coconut milk, pork lard, fried batter and ghee are the sources in this log.
 - GUIDE:fibre — WHO/HPB: ≥25 g/day. Whole fruit, vegetables, legumes, wholegrains.
