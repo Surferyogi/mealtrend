@@ -94,6 +94,7 @@
   .rating ul{margin:6px 0 0;padding-left:18px;color:var(--soft);font-size:12.5px}
   .mbtn{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
   .fld{display:block;font-size:12px;color:var(--soft);margin:10px 0 4px}
+  .hint{display:block;font-size:11px;color:var(--soft);margin-top:4px}
   .fld input{width:100%;padding:9px;border:1px solid var(--rule);border-radius:4px;font:inherit;background:#fff;margin-top:3px}
   .thumb{width:100%;max-height:220px;object-fit:cover;border-radius:4px;margin:8px 0}
   .thumb.sm{max-height:120px;margin-top:8px}
@@ -397,7 +398,7 @@ const SEED_MEALS = [
 // MEALTREND — app logic
 // Version stamp convention: vYYYY:MMM:DD-HH:MM (Asia/Singapore)
 // ============================================================
-const VERSION = "v2026:SEP:06-00:00"; // HH:MM approximate — device clock unavailable; set on first edit
+const VERSION = "v2026:SEP:06-02:00"; // HH:MM approximate — device clock unavailable; set on first edit
 
 const LS_KEY = "mealtrend.v1";
 const BANDS = {
@@ -678,7 +679,10 @@ function renderModal(){
     <label>Slot<select onchange="ADD.slot=this.value">${["breakfast","brunch","lunch","snack","dinner"].map(s=>`<option ${ADD.slot===s?'selected':''}>${s}</option>`).join("")}</select></label></div>
     <label>Liquid consumed<select onchange="ADD.liquid=this.value;renderModal()">${[["none","None — dry-cooked"],["clear","Clear stock, gently simmered"],["concentrated","Concentrated / long-reduced broth"],["gravy","Rempah gravy or shellfish stock"]].map(([v,l])=>`<option value="${v}" ${ADD.liquid===v?'selected':''}>${l}</option>`).join("")}</select></label>
     <label class="chk"><input type="checkbox" ${ADD.checked?'checked':''} onchange="ADD.checked=this.checked"> Ingredient checked with cook / stall</label>
-    <label class="fld">Photo <input type="file" accept="image/*" capture="environment" onchange="onPhoto(this)"></label>
+    <label class="fld">Photo <span id="photoStatus" class="mono"></span>
+      <input type="file" accept="image/*" onchange="onPhoto(this)">
+      <span class="hint">Tap to choose Photo Library, Take Photo, or Browse.</span></label>
+    ${ADD.photoError?`<div class="alert red"><b>Photo not readable</b><p>${esc(ADD.photoError)}</p></div>`:""}
     ${ADD.thumb?`<img class="thumb" src="data:image/jpeg;base64,${ADD.thumb}" alt="">`:""}
     <button id="aiBtn" class="btn primary" onclick="runMealAI()" ${AI.ready()?"":"disabled title='Add API key under More → AI'"}>${ADD.ai?"Re-analyse with AI":"Analyse with AI"}${PENDING_IMG?" (photo)":""}</button>
     ${renderAI(ADD.ai)}
@@ -799,18 +803,40 @@ ${this.libraryText()}`;
  "limits": [string]
 }`,
 
-  async call(userContent, maxTokens){
+  // Extract the first complete JSON object by brace matching (string-aware).
+  // Fence-stripping alone fails when the response is truncated or has trailing prose.
+  extractJSON(text){
+    const i=text.indexOf("{"); if(i<0) return null;
+    let d=0, inStr=false, esc=false;
+    for(let j=i;j<text.length;j++){
+      const c=text[j];
+      if(inStr){ if(esc) esc=false; else if(c==="\\") esc=true; else if(c==='"') inStr=false; continue; }
+      if(c==='"'){ inStr=true; continue; }
+      if(c==="{") d++;
+      else if(c==="}"){ d--; if(d===0){ try{ return JSON.parse(text.slice(i,j+1)); }catch(e){ return null; } } }
+    }
+    return null; // unbalanced — response was cut off
+  },
+
+  async call(userContent, maxTokens, _retry){
     const res = await fetch("https://api.anthropic.com/v1/messages",{
       method:"POST",
       headers:{ "content-type":"application/json", "x-api-key":this.key(), "anthropic-version":"2023-06-01", "anthropic-dangerous-direct-browser-access":"true" },
-      body: JSON.stringify({ model:this.model(), max_tokens:maxTokens||1800, system:this.system(), messages:[{role:"user", content:userContent}] })
+      body: JSON.stringify({ model:this.model(), max_tokens:maxTokens||4000, system:this.system(), messages:[{role:"user", content:userContent}] })
     });
     if(!res.ok){ const t=await res.text(); throw new Error(`API ${res.status}: ${t.slice(0,300)}`); }
     const data=await res.json();
     const text=(data.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("\n");
-    const clean=text.replace(/^```json\s*|^```\s*|```\s*$/gm,"").trim();
-    try{ return { json: JSON.parse(clean), raw:text, usage:data.usage }; }
-    catch(e){ return { json:null, raw:text, usage:data.usage, parseError:true }; }
+    const truncated = data.stop_reason==="max_tokens";
+    const json=this.extractJSON(text);
+    if(json) return { json, raw:text, usage:data.usage, truncated:false };
+    if(truncated && !_retry){
+      // Retry once, asking for terse output. Truncation is the usual cause of a parse failure.
+      const terse=[...userContent];
+      terse.push({type:"text", text:"IMPORTANT: your previous reply was cut off before the JSON closed. Reply again with the SAME schema but keep every string under 25 words and every array to at most 3 entries. Output the JSON object only — no fences, no commentary."});
+      return this.call(terse, (maxTokens||4000)+2000, true);
+    }
+    return { json:null, raw:text, usage:data.usage, truncated, parseError:true };
   },
 
   async analyseMeal(meal, imageB64, mediaType){
@@ -825,12 +851,11 @@ liquid consumed (user-declared): ${meal.liquid}
 ingredient checked with cook/stall: ${meal.checked?"yes":"no"}
 user note: ${meal.note||"-"}
 
-Return JSON matching exactly this schema:
-${this.mealSchema}`;
+Return the JSON object only — no markdown fences, no text before or after.\nKeep every string under 35 words and every array to at most 4 entries, so the object closes well within the token budget.\nSchema:\n${this.mealSchema}`;
     const content=[];
     if(imageB64) content.push({type:"image", source:{type:"base64", media_type:mediaType||"image/jpeg", data:imageB64}});
     content.push({type:"text", text:context});
-    return this.call(content, 1800);
+    return this.call(content, 4000);
   },
 
   async reviewLog(){
@@ -844,9 +869,8 @@ ${stats}
 MEAL LOG
 ${meals}
 
-Return JSON matching exactly this schema:
-${this.reviewSchema}`;
-    return this.call([{type:"text", text}], 2200);
+Return the JSON object only — no markdown fences, no text before or after.\nKeep every string under 40 words and every array to at most 5 entries.\nSchema:\n${this.reviewSchema}`;
+    return this.call([{type:"text", text}], 5000);
   }
 };
 
@@ -854,10 +878,20 @@ ${this.reviewSchema}`;
 function fileToResized(file, maxPx, quality){
   return new Promise((resolve,reject)=>{
     const img=new Image(); const url=URL.createObjectURL(file);
-    img.onload=()=>{ const s=Math.min(1, maxPx/Math.max(img.width,img.height)); const c=document.createElement("canvas"); c.width=Math.round(img.width*s); c.height=Math.round(img.height*s);
-      c.getContext("2d").drawImage(img,0,0,c.width,c.height); URL.revokeObjectURL(url);
-      const dataUrl=c.toDataURL("image/jpeg",quality); resolve(dataUrl.split(",")[1]); };
-    img.onerror=reject; img.src=url;
+    img.onload=()=>{
+      const s=Math.min(1, maxPx/Math.max(img.width,img.height));
+      const c=document.createElement("canvas");
+      c.width=Math.max(1,Math.round(img.width*s)); c.height=Math.max(1,Math.round(img.height*s));
+      c.getContext("2d").drawImage(img,0,0,c.width,c.height);
+      URL.revokeObjectURL(url);
+      let dataUrl;
+      try{ dataUrl=c.toDataURL("image/jpeg",quality); }
+      catch(e){ reject(new Error("Could not read this image (canvas blocked).")); return; }
+      resolve(dataUrl.split(",")[1]);
+    };
+    img.onerror=()=>{ URL.revokeObjectURL(url);
+      reject(new Error(`Could not decode ${file.name||"this file"} (${file.type||"unknown type"}). If it is a HEIC photo, open it in Photos, tap Share \u2192 Duplicate, or set Settings \u2192 Camera \u2192 Formats \u2192 Most Compatible, then pick it again.`)); };
+    img.src=url;
   });
 }
 
@@ -865,16 +899,23 @@ function fileToResized(file, maxPx, quality){
 let PENDING_IMG=null; // full-res base64 for the API call; not persisted
 async function onPhoto(inp){
   const f=inp.files[0]; if(!f) return;
-  PENDING_IMG = await fileToResized(f, 1280, 0.82);
-  ADD.thumb = await fileToResized(f, 420, 0.6);
+  const st=$("#photoStatus"); if(st) st.textContent="Reading photo\u2026";
+  try{
+    PENDING_IMG = await fileToResized(f, 1280, 0.82);
+    ADD.thumb   = await fileToResized(f, 420, 0.6);
+    ADD.photoError=null;
+  }catch(e){
+    PENDING_IMG=null; ADD.thumb=null; ADD.photoError=String(e.message||e);
+  }
   renderModal();
 }
 async function runMealAI(){
-  if(!AI.ready()){ alert("Add your API key under More → AI. It stays on this device."); return; }
+  if(!AI.ready()){ alert("Add your API key under More \u2192 AI. It stays on this device."); return; }
+  if(!PENDING_IMG && !ADD.items.length && !ADD.label.trim()){ alert("Add a photo, pick some foods, or type a label first \u2014 there is nothing to analyse."); return; }
   const btn=$("#aiBtn"); btn.disabled=true; btn.textContent="Analysing…";
   try{
     const r=await AI.analyseMeal(ADD, PENDING_IMG, "image/jpeg");
-    if(r.parseError){ ADD.ai={error:"Model returned non-JSON", raw:r.raw}; }
+    if(r.parseError){ ADD.ai={error: r.truncated ? "Response was cut off before the JSON closed, twice. Try again, or shorten the meal (fewer items)." : "Model returned something that isn't a JSON object.", raw:r.raw}; }
     else { ADD.ai=r.json; ADD.ai.model=AI.model(); ADD.ai.at=new Date().toISOString(); ADD.ai.usage=r.usage;
       // adopt identified items the user hasn't already added, when they map to the library
       (ADD.ai.identified_items||[]).forEach(it=>{ if(it.library_id && FOOD[it.library_id] && !ADD.items.includes(it.library_id) && it.confidence>=60) ADD.items.push(it.library_id); });
