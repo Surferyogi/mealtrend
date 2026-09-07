@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#E7EBE4">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="MealTrend">
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%231F4D46'/%3E%3Ctext x='50' y='66' font-size='48' text-anchor='middle' fill='%23fff' font-family='sans-serif' font-weight='800'%3EM%3C/text%3E%3C/svg%3E">
+<title>MealTrend</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#E7EBE4;--surface:#FCFCFA;--ink:#13170F;--soft:#5D6656;--rule:#C9D0C2;--sambal:#AF3324;--turmeric:#B87C12;--pandan:#3B6B45;--deep:#1F4D46;}
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  header{position:sticky;top:0;z-index:5;background:var(--bg);padding:14px 16px 8px;border-bottom:1px solid var(--rule);display:flex;align-items:baseline;gap:10px}
+  header h1{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:22px;margin:0;letter-spacing:-.02em}
+  header .v{font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--soft);margin-left:auto}
+  #badge{background:var(--sambal);color:#fff;font-family:"IBM Plex Mono",monospace;font-size:10px;padding:2px 6px;border-radius:9px;display:none}
+  #view{padding:16px 16px 90px;max-width:720px;margin:0 auto}
+  #tabs{position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--rule);display:flex;padding:6px 4px calc(6px + env(safe-area-inset-bottom));z-index:5}
+  #tabs a{flex:1;text-align:center;font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);text-decoration:none;padding:8px 2px;border-radius:4px}
+  #tabs a.on{color:var(--ink);background:var(--bg);font-weight:600}
+  h2{font-family:"Bricolage Grotesque",sans-serif;font-weight:600;font-size:12px;letter-spacing:.14em;text-transform:uppercase;margin:26px 0 6px}
+  h3{font-family:"Bricolage Grotesque",sans-serif;font-weight:600;font-size:17px;margin:18px 0 6px;letter-spacing:-.01em}
+  .sub{color:var(--soft);font-size:13.5px;margin:0 0 14px}
+  .na{color:var(--soft);font-style:italic;font-size:12.5px}
+  .mono{font-family:"IBM Plex Mono",monospace;font-weight:600}
+  .hero{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:4px}
+  .stat{background:var(--surface);border:1px solid var(--rule);border-radius:4px;padding:14px}
+  .stat .n{font-family:"IBM Plex Mono",monospace;font-size:24px;font-weight:600;display:block;line-height:1;margin-bottom:6px}
+  .stat .n.good{color:var(--pandan)} .stat .n.hot{color:var(--sambal)} .stat .n.warm{color:var(--turmeric)}
+  .stat p{margin:0;font-size:12px;color:var(--soft);line-height:1.35}
+  .row{display:flex;gap:16px;align-items:center;margin:10px 0}
+  .legend{font-size:12.5px;display:grid;gap:4px}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:middle}
+  .chip{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;padding:3px 6px;border-radius:2px;color:#fff;white-space:nowrap}
+  .chip.na{background:#C9D0C2;color:var(--soft)}
+  .btn{display:inline-block;background:var(--surface);border:1px solid var(--rule);border-radius:4px;padding:10px 14px;font:inherit;font-size:14px;cursor:pointer;margin:0 6px 8px 0;color:var(--ink)}
+  .btn.primary{background:var(--deep);color:#fff;border-color:var(--deep)}
+  .btn.danger{color:var(--sambal);border-color:var(--sambal)}
+  .list{margin-top:10px}
+  .meal{background:var(--surface);border:1px solid var(--rule);border-radius:4px;padding:12px;margin-bottom:8px;cursor:pointer}
+  .mh{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .seq{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--soft)}
+  .lab{font-weight:600;flex:1}
+  .mm{font-size:12px;color:var(--soft);margin-top:4px}
+  .mn{font-size:12.5px;color:var(--soft);margin-top:6px;border-top:1px solid var(--rule);padding-top:6px}
+  .seg{display:flex;gap:4px;background:var(--surface);border:1px solid var(--rule);border-radius:4px;padding:4px;margin-bottom:8px}
+  .seg button{flex:1;border:0;background:transparent;font:inherit;font-size:12.5px;padding:8px 4px;border-radius:3px;cursor:pointer;color:var(--soft)}
+  .seg button.on{background:var(--bg);color:var(--ink);font-weight:600}
+  .nalist{font-size:13px;color:var(--soft);padding-left:18px}
+  ul.src{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--soft);padding-left:16px;line-height:1.6}
+  .lens{background:var(--surface);border:1px solid var(--rule);border-radius:4px;padding:16px;margin-bottom:12px}
+  .lens h3{margin-top:0}
+  .lens .basis{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--soft);margin:0 0 10px}
+  .lens ul{margin:0;padding-left:18px;font-size:13.5px;color:var(--soft)}
+  .lens li{margin-bottom:6px}
+  .rec{border-left:3px solid var(--rule);padding:8px 0 8px 14px;margin-bottom:10px}
+  .rec.more{border-color:var(--pandan)} .rec.less{border-color:var(--sambal)}
+  .rec p{margin:4px 0;font-size:13.5px;color:var(--soft)}
+  .rec .src,.alert .src{font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--soft)}
+  .alert{background:var(--surface);border:1px solid var(--rule);border-left-width:4px;border-radius:4px;padding:12px;margin-bottom:10px}
+  .alert.red{border-left-color:var(--sambal)} .alert.amber{border-left-color:var(--turmeric)}
+  .ah{display:flex;gap:8px;align-items:center}
+  .alert p{margin:6px 0;font-size:13.5px;color:var(--soft)}
+  .ok{background:#EAF0E6;border:1px solid var(--pandan);border-radius:4px;padding:14px;color:var(--pandan)}
+  .search{width:100%;padding:10px;border:1px solid var(--rule);border-radius:4px;font:inherit;background:var(--surface);margin:6px 0 10px}
+  .lib{background:var(--surface);border:1px solid var(--rule);border-radius:4px;padding:12px;margin-bottom:8px}
+  .lh .cat{font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--soft);margin-left:8px}
+  .lg{display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12.5px;margin:8px 0}
+  .flags i{font-family:"IBM Plex Mono",monospace;font-size:9.5px;font-style:normal;background:var(--bg);padding:2px 6px;border-radius:2px;margin-right:4px;color:var(--soft)}
+  .ls{font-size:11px;color:var(--soft);margin-top:8px;border-top:1px solid var(--rule);padding-top:6px}
+  .ls em{color:var(--turmeric)} .conf{font-family:"IBM Plex Mono",monospace}
+  .ver{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--soft);margin-top:30px}
+  #modal{display:none;position:fixed;inset:0;background:rgba(19,23,15,.45);z-index:20;overflow:auto;padding:20px 12px}
+  #modal.open{display:block}
+  .mbox{background:var(--surface);border-radius:6px;padding:18px;max-width:560px;margin:0 auto}
+  .mbox h2{margin-top:0}
+  .mbox label{display:block;font-size:12px;color:var(--soft);margin:10px 0 4px}
+  .mbox input,.mbox select,.mbox textarea{width:100%;padding:9px;border:1px solid var(--rule);border-radius:4px;font:inherit;background:#fff;margin-top:3px}
+  .mbox textarea{min-height:60px}
+  .mbox .chk{display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--ink)} .mbox .chk input{width:auto;margin:0}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .hit{padding:8px 10px;border-bottom:1px solid var(--rule);cursor:pointer;font-size:13.5px}
+  .hit .cat{font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--soft)}
+  .picked{margin:8px 0}
+  .tag{display:inline-block;background:var(--bg);border-radius:3px;padding:4px 8px;font-size:12.5px;margin:0 6px 6px 0}
+  .tag b{margin-left:6px;cursor:pointer;color:var(--sambal)}
+  .rating{background:var(--bg);border-radius:4px;padding:10px;margin:12px 0;font-size:13px}
+  .rating ul{margin:6px 0 0;padding-left:18px;color:var(--soft);font-size:12.5px}
+  .mbtn{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+  .fld{display:block;font-size:12px;color:var(--soft);margin:10px 0 4px}
+  .fld input{width:100%;padding:9px;border:1px solid var(--rule);border-radius:4px;font:inherit;background:#fff;margin-top:3px}
+  .thumb{width:100%;max-height:220px;object-fit:cover;border-radius:4px;margin:8px 0}
+  .thumb.sm{max-height:120px;margin-top:8px}
+  .aibox{background:#F3F6F1;border:1px solid var(--pandan);border-radius:4px;padding:14px;margin:12px 0}
+  .aibox.err{border-color:var(--sambal);background:#F7EDEB}
+  .aih{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:6px}
+  .aih .mono{font-size:10px;color:var(--soft)}
+  .overall{font-size:14.5px;margin:0 0 10px}
+  .aisec{font-size:13px;margin:8px 0;padding-top:8px;border-top:1px solid var(--rule)}
+  .aisec b{display:inline-block;min-width:78px;color:var(--ink)}
+  .aisec ul{margin:4px 0 0;padding-left:18px;color:var(--soft)}
+  .aisec.ask{background:#FFF7E6;border:1px solid var(--turmeric);border-radius:3px;padding:8px 10px}
+  .aisec.na{color:var(--soft)}
+  .cites{display:block;font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--soft);margin-top:3px}
+  .disc{font-size:11px;color:var(--soft);margin:10px 0 0;font-style:italic}
+  .mn.ai{color:var(--pandan)}
+  pre{white-space:pre-wrap;font-size:11px;background:#fff;padding:8px;border-radius:3px}
+</style>
+</head>
+<body>
+<header><h1>MealTrend</h1><span id="badge"></span><span class="v" id="ver"></span></header>
+<main id="view"></main>
+<nav id="tabs"></nav>
+<div id="modal"></div>
+<script>
+// ============================================================
+// FOOD LIBRARY — single source of truth
+// Every figure carries: value, band, source, confidence (0–100, subjective calibration)
+// null = not measured / not available. Never estimated.
+// ============================================================
+
+const SRC = {
+  KANEKO: "Kaneko K, Aoyagi Y, Fukuuchi T, Inazawa K, Yamaoka N. Biol Pharm Bull 2014;37(5):709–721 (HPLC, 270 foods) — read via secondary tabulation",
+  HENRY:  "Henry CJ, Quek RYC, Kaur B, Shyam S, Gilcharan Singh HK. Nutr Diabetes 2021;11:2 — Table 1 read directly",
+  SUN:    "Sun L, Lee DEM, Tan WJK, Ranawana DV, Quek YCR, Goh HJ, Henry CJ. Br J Nutr 2015;113(5):843–848",
+  CHIA:   "Chia M. J Obes Wt Loss Ther 2012;S2:001 (OMICS supplement; n=11 athletes) — quality concern",
+  ATK:    "Atkinson FS, Brand-Miller JC, Foster-Powell K, Buyken AE, Goletzke J. Am J Clin Nutr 2021;114(5):1625–32",
+  HPB:    "HealthHub / Health Promotion Board Singapore, GI values of common foods, reviewed 26 Jun 2025",
+  USDA:   "USDA FoodData Central, via Wikipedia sourced infobox",
+  USDA2:  "USDA FoodData Central averages, via secondary chart (chartfarosh.com)",
+  PANEL:  "Manufacturer nutrition panel, photographed",
+  LABEL:  "Product label (Heineken / San Miguel / Peroni), via steadydrinker.com",
+  BJN_BEER:"Br J Nutr (Cambridge), Netherlands beer study co-authored by Atkinson & Brand-Miller — pilsner, GI 89±5",
+  WINE:   "Synthesised range: wine.com, Wine Insiders, Japan Standard Tables via fusubon.com",
+  MY:     "Malaysian study in Henry 2021 compendium (T2DM participants where noted)",
+  FSA:    "UK Food Standards Agency front-of-pack thresholds: sugar ≤5 low, 5–22.5 medium, >22.5 high per 100g"
+};
+
+// Purine bands (Kaneko / Japanese guideline): vlow <50, low 50–100, mod 100–200, high 200–300, vhigh >300
+function pBand(v){ if(v==null) return null; if(v<50) return "vlow"; if(v<100) return "low"; if(v<200) return "mod"; if(v<300) return "high"; return "vhigh"; }
+// GI bands (Sydney / HPB): low ≤55, med 56–69, high ≥70
+function gBand(v){ if(v==null) return null; if(v<=55) return "low"; if(v<=69) return "med"; return "high"; }
+// Sugar bands (FSA)
+function sBand(v){ if(v==null) return null; if(v<=5) return "low"; if(v<=22.5) return "med"; return "high"; }
+
+// flags: dried_seafood (confirmed) | dried_seafood_likely (conventional, unconfirmed) | shellfish | organ | alcohol | sweetened | dairy | egg | plant_protein
+const FOODS = [
+  // ---------- PURINE-DEFINED PROTEINS & GARNISHES ----------
+  { id:"ikan_bilis", name:"Ikan bilis (dried anchovy)", cat:"dried seafood", flags:["dried_seafood"],
+    purine:{v:1109, src:SRC.KANEKO, conf:80}, gi:{v:null}, sugar:{v:null}, chol:{v:null} },
+  { id:"hae_bee", name:"Hae bee (dried shrimp)", cat:"dried seafood", flags:["dried_seafood","shellfish"],
+    purine:{v:749, src:SRC.KANEKO+" — sakura shrimp, closest measured", conf:60}, gi:{v:null}, sugar:{v:null}, chol:{v:null} },
+  { id:"katsuobushi", name:"Katsuobushi (dried bonito)", cat:"dried seafood", flags:["dried_seafood"],
+    purine:{v:493, src:SRC.KANEKO, conf:80}, gi:{v:null}, sugar:{v:null}, chol:{v:null} },
+  { id:"dried_shiitake", name:"Dried shiitake", cat:"dried", flags:[],
+    purine:{v:380, src:SRC.KANEKO, conf:80}, gi:{v:null}, sugar:{v:null}, chol:{v:0, src:"plant food — no cholesterol", conf:95} },
+  { id:"chicken_liver", name:"Chicken liver", cat:"organ", flags:["organ"],
+    purine:{v:312, src:SRC.KANEKO, conf:80}, gi:{v:null}, sugar:{v:null}, chol:{v:null, note:"highest of common foods per USDA; exact figure not retrieved"} },
+  { id:"pork_liver", name:"Pork liver", cat:"organ", flags:["organ"],
+    purine:{v:285, src:SRC.KANEKO, conf:80}, gi:{v:null}, sugar:{v:null}, chol:{v:null} },
+  { id:"shrimp_fresh", name:"Prawn / shrimp, fresh", cat:"seafood", flags:["shellfish"],
+    purine:{v:273, src:SRC.KANEKO+" — oriental shrimp; species range 53–273", conf:65}, gi:{v:null}, sugar:{v:null},
+    chol:{v:130, src:SRC.USDA+" — raw mixed species; cooked 122–251", conf:75} },
+  { id:"chicken_breast", name:"Chicken breast", cat:"poultry", flags:[],
+    purine:{v:141, src:SRC.KANEKO, conf:80}, gi:{v:null}, sugar:{v:null},
+    chol:{v:86, src:SRC.USDA2+" — 73 mg/85g serving, converted", conf:60} },
+  { id:"chicken_leg", name:"Chicken leg / thigh", cat:"poultry", flags:[],
+    purine:{v:123, src:SRC.KANEKO, conf:80}, gi:{v:null}, sugar:{v:null},
+    chol:{v:104, src:SRC.USDA2+" — 88 mg/85g serving, converted", conf:60} },
+  { id:"salmon", name:"Salmon", cat:"fish", flags:[],
+    purine:{v:119, src:SRC.KANEKO, conf:80}, gi:{v:null}, sugar:{v:null},
+    chol:{v:55, src:SRC.USDA+" — wild Atlantic, raw", conf:80} },
+  { id:"tuna", name:"Tuna", cat:"fish", flags:[],
+    purine:{v:157, src:SRC.KANEKO, conf:80}, gi:{v:null}, sugar:{v:null},
+    chol:{v:24, src:SRC.USDA2+" — ~20 mg/85g, converted", conf:55} },
+  { id:"pork_shoulder", name:"Pork shoulder", cat:"pork", flags:[],
+    purine:{v:81, src:SRC.KANEKO, conf:80}, gi:{v:null}, sugar:{v:null}, chol:{v:null, note:"USDA value not retrieved this session"} },
+  { id:"pork_ribs", name:"Pork ribs", cat:"pork", flags:[],
+    purine:{v:76, src:SRC.KANEKO, conf:80}, gi:{v:null}, sugar:{v:null}, chol:{v:null, note:"USDA value not retrieved this session"} },
+  { id:"pork_neck", name:"Pork neck", cat:"pork", flags:[],
+    purine:{v:71, src:SRC.KANEKO, conf:80}, gi:{v:null}, sugar:{v:null}, chol:{v:null} },
+  { id:"pork_lard", name:"Pork lard / crackling", cat:"fat", flags:[],
+    purine:{v:null, note:"rendered fat — purines sit in protein-rich tissue; not measured"}, gi:{v:null}, sugar:{v:null}, chol:{v:null, note:"not retrieved"} },
+  { id:"fish_paste", name:"Fish paste / fish cake", cat:"fish", flags:[],
+    purine:{v:68, src:SRC.KANEKO+" — fish ball, proxy", conf:65}, gi:{v:null}, sugar:{v:null}, chol:{v:null} },
+  { id:"egg", name:"Egg (whole)", cat:"egg", flags:["egg"],
+    purine:{v:0, src:SRC.KANEKO, conf:90}, gi:{v:null}, sugar:{v:null},
+    chol:{v:null, note:"yolk 1085 mg/100g confirmed (USDA); whole-egg figure not confirmed this session"} },
+  { id:"egg_yolk", name:"Egg yolk", cat:"egg", flags:["egg"],
+    purine:{v:0, src:SRC.KANEKO+" — egg", conf:90}, gi:{v:null}, sugar:{v:null},
+    chol:{v:1085, src:SRC.USDA, conf:80} },
+  { id:"milk", name:"Milk (low-fat)", cat:"dairy", flags:["dairy"],
+    purine:{v:0, src:SRC.KANEKO, conf:90}, gi:{v:null, note:"HPB: low band"}, sugar:{v:null, note:"lactose; not confirmed this session"}, chol:{v:null} },
+  { id:"tofu", name:"Tofu", cat:"soy", flags:["plant_protein"],
+    purine:{v:31, src:SRC.KANEKO+" — momen", conf:80}, gi:{v:null}, sugar:{v:null}, chol:{v:0, src:"plant food", conf:95} },
+  { id:"tau_pok", name:"Tau pok / tau kee (fried beancurd)", cat:"soy", flags:["plant_protein"],
+    purine:{v:54, src:SRC.KANEKO+" — deep-fried tofu", conf:65}, gi:{v:null}, sugar:{v:null}, chol:{v:0, src:"plant food", conf:95} },
+  { id:"tempeh", name:"Tempeh", cat:"soy", flags:["plant_protein"],
+    purine:{v:null, note:"not in Kaneko; natto (fermented whole soy) 114 is nearest analogue"}, gi:{v:null}, sugar:{v:null}, chol:{v:0, src:"plant food", conf:95} },
+  { id:"peanut", name:"Peanut", cat:"nut", flags:["plant_protein"],
+    purine:{v:49, src:SRC.KANEKO, conf:80}, gi:{v:null, note:"HPB: low band"}, sugar:{v:null}, chol:{v:0, src:"plant food", conf:95} },
+  { id:"almond", name:"Almond", cat:"nut", flags:["plant_protein"],
+    purine:{v:31, src:SRC.KANEKO, conf:80}, gi:{v:null}, sugar:{v:null}, chol:{v:0, src:"plant food", conf:95} },
+
+  // ---------- STARCHES (GI-defined) ----------
+  { id:"nasi_lemak", name:"Nasi lemak (coconut rice, composite)", cat:"rice dish", flags:[],
+    purine:{v:null}, gi:{v:85, range:[70,100], src:SRC.HPB+" — HIGH band; underlying studies 100 (Chia) and 66 (Sun)", conf:85}, sugar:{v:null}, chol:{v:null} },
+  { id:"white_rice", name:"White rice, plain", cat:"rice", flags:[],
+    purine:{v:26, src:SRC.KANEKO+" — polished rice", conf:80}, gi:{v:96, src:SRC.HENRY+" — Singapore, n=12", conf:88}, sugar:{v:0.05, src:SRC.USDA, conf:80}, chol:{v:0, src:"plant food", conf:95} },
+  { id:"rice_oil_chicken_veg", name:"Rice + oil + chicken + vegetables (study arm)", cat:"rice dish", flags:[],
+    purine:{v:null}, gi:{v:50, src:SRC.HENRY+" — same study as plain rice 96", conf:85}, sugar:{v:null}, chol:{v:null} },
+  { id:"mee_siam", name:"Mee siam", cat:"noodle dish", flags:["sweetened"],
+    purine:{v:null}, gi:{v:88, src:SRC.CHIA+" via "+SRC.HENRY, conf:55}, sugar:{v:null, note:"characteristically sweet; not measured"}, chol:{v:null} },
+  { id:"thosai", name:"Thosai / dosa", cat:"bread", flags:[],
+    purine:{v:null}, gi:{v:76, src:SRC.HENRY+" — rice dosa, n=19", conf:82}, sugar:{v:null}, chol:{v:0, src:"plant food", conf:95} },
+  { id:"naan", name:"Naan", cat:"bread", flags:[],
+    purine:{v:null}, gi:{v:71, src:SRC.ATK, conf:88}, sugar:{v:null}, chol:{v:null} },
+  { id:"white_bread", name:"White wheat bread", cat:"bread", flags:[],
+    purine:{v:21, src:SRC.KANEKO+" — wheat flour 16–26", conf:80}, gi:{v:70, src:SRC.ATK+" — mean of 7", conf:88}, sugar:{v:null}, chol:{v:null} },
+  { id:"baguette", name:"French baguette", cat:"bread", flags:[],
+    purine:{v:21, src:SRC.KANEKO+" — wheat flour", conf:80}, gi:{v:95, src:SRC.ATK, conf:88}, sugar:{v:null}, chol:{v:null} },
+  { id:"char_siew_pau", name:"Char siew pau", cat:"bun", flags:["sweetened"],
+    purine:{v:null}, gi:{v:66, src:SRC.SUN, conf:80}, sugar:{v:null}, chol:{v:null} },
+  { id:"steamed_bun", name:"Steamed white bun (plain)", cat:"bun", flags:[],
+    purine:{v:21, src:SRC.KANEKO+" — wheat flour", conf:80}, gi:{v:58, src:SRC.HENRY, conf:82}, sugar:{v:null}, chol:{v:null} },
+  { id:"sourdough_wheat", name:"Sourdough, wheat", cat:"bread", flags:[],
+    purine:{v:21, src:SRC.KANEKO+" — wheat flour", conf:80}, gi:{v:54, src:"University of Sydney figure via multiple sites", conf:65}, sugar:{v:null}, chol:{v:null} },
+  { id:"sourdough_rye", name:"Sourdough, rye", cat:"bread", flags:[],
+    purine:{v:null}, gi:{v:50, range:[48,53], src:SRC.ATK, conf:88}, sugar:{v:null}, chol:{v:null} },
+  { id:"pumpernickel", name:"Pumpernickel / rye kernel", cat:"bread", flags:[],
+    purine:{v:null}, gi:{v:48, range:[41,56], src:SRC.ATK, conf:88}, sugar:{v:null}, chol:{v:null} },
+  { id:"prata", name:"Roti prata (= paratha)", cat:"bread", flags:[],
+    purine:{v:21, src:SRC.KANEKO+" — wheat flour", conf:80}, gi:{v:null, note:"not tested. Proxies: porotta 38 (Henry), paratha ~53 (unnamed source). Conflicting; neither is prata."}, sugar:{v:null}, chol:{v:null} },
+  { id:"bee_hoon", name:"Bee hoon / mihun (rice vermicelli), plain", cat:"noodle", flags:[],
+    purine:{v:26, src:SRC.KANEKO+" — rice basis", conf:65}, gi:{v:35, src:SRC.SUN+" — lowest of 15 foods", conf:85}, sugar:{v:null}, chol:{v:0, src:"plant food", conf:95} },
+  { id:"bee_hoon_fried", name:"Bee hoon / mihun, fried", cat:"noodle", flags:[],
+    purine:{v:26, src:SRC.KANEKO+" — rice basis", conf:65}, gi:{v:45, src:SRC.MY+" — Terengganu fried mihun", conf:68}, sugar:{v:null}, chol:{v:null} },
+  { id:"yellow_noodle", name:"Yellow noodle (hokkien mee)", cat:"noodle", flags:[],
+    purine:{v:21, src:SRC.KANEKO+" — wheat flour", conf:70}, gi:{v:null, note:"not tested; HPB lists 'noodles' low band"}, sugar:{v:null}, chol:{v:null} },
+  { id:"mantou_fried", name:"Fried mantou", cat:"bun", flags:[],
+    purine:{v:21, src:SRC.KANEKO+" — wheat flour", conf:80}, gi:{v:null, note:"not tested"}, sugar:{v:null}, chol:{v:null} },
+  { id:"peanut_pancake", name:"Peanut pancake (min jiang kueh)", cat:"snack", flags:["sweetened"],
+    purine:{v:35, src:SRC.KANEKO+" — flour + peanut", conf:60}, gi:{v:null}, sugar:{v:null, note:"sweetened; not measured"}, chol:{v:null} },
+  { id:"pandan_chiffon", name:"Pandan chiffon", cat:"cake", flags:["sweetened","egg"],
+    purine:{v:null, note:"flour + egg; negligible"}, gi:{v:null, note:"not tested — pandan waffle 46 is a different product"}, sugar:{v:null, note:"sweetened; not measured"}, chol:{v:null} },
+  { id:"snowskin", name:"Snowskin mooncake, red bean", cat:"dessert", flags:["sweetened"],
+    purine:{v:null}, gi:{v:null}, sugar:{v:30.9, src:SRC.PANEL, conf:95}, chol:{v:null} },
+  { id:"granola", name:"Nut & seed granola", cat:"cereal", flags:["plant_protein"],
+    purine:{v:null, note:"seeds not in Kaneko; almond 31"}, gi:{v:null}, sugar:{v:10.2, src:SRC.PANEL+" — 4.1g per 40g serve", conf:95}, chol:{v:0, src:"plant food", conf:95} },
+
+  // ---------- FRUIT / VEG ----------
+  { id:"mango", name:"Mango", cat:"fruit", flags:[],
+    purine:{v:null}, gi:{v:null, note:"HPB: low band"}, sugar:{v:13.7, src:SRC.USDA, conf:85}, chol:{v:0, src:"plant food", conf:95} },
+  { id:"plum", name:"Plum", cat:"fruit", flags:[],
+    purine:{v:null}, gi:{v:null}, sugar:{v:9.92, src:SRC.USDA, conf:85}, chol:{v:0, src:"plant food", conf:95} },
+  { id:"apple", name:"Apple", cat:"fruit", flags:[],
+    purine:{v:null}, gi:{v:null, note:"HPB: low band"}, sugar:{v:null, note:"not confirmed this session"}, chol:{v:0, src:"plant food", conf:95} },
+  { id:"cucumber", name:"Cucumber", cat:"vegetable", flags:[],
+    purine:{v:9, src:SRC.KANEKO, conf:80}, gi:{v:null}, sugar:{v:null}, chol:{v:0, src:"plant food", conf:95} },
+  { id:"tomato", name:"Tomato", cat:"vegetable", flags:[],
+    purine:{v:3, src:SRC.KANEKO+" — cherry", conf:80}, gi:{v:null}, sugar:{v:null}, chol:{v:0, src:"plant food", conf:95} },
+  { id:"potato", name:"Potato", cat:"vegetable", flags:[],
+    purine:{v:7, src:SRC.KANEKO, conf:80}, gi:{v:null, note:"HPB: high band"}, sugar:{v:null}, chol:{v:0, src:"plant food", conf:95} },
+  { id:"carrot", name:"Carrot", cat:"vegetable", flags:[],
+    purine:{v:2, src:SRC.KANEKO, conf:80}, gi:{v:null, note:"HPB: low band"}, sugar:{v:null}, chol:{v:0, src:"plant food", conf:95} },
+  { id:"onion", name:"Onion", cat:"vegetable", flags:[],
+    purine:{v:2, src:SRC.KANEKO, conf:80}, gi:{v:null}, sugar:{v:null}, chol:{v:0, src:"plant food", conf:95} },
+  { id:"leafy_greens", name:"Leafy greens (spinach etc.)", cat:"vegetable", flags:[],
+    purine:{v:51, src:SRC.KANEKO+" — spinach leaf", conf:75}, gi:{v:null, note:"HPB: low band"}, sugar:{v:null}, chol:{v:0, src:"plant food", conf:95} },
+  { id:"bean_sprouts", name:"Bean sprouts", cat:"vegetable", flags:[],
+    purine:{v:35, src:SRC.KANEKO, conf:80}, gi:{v:null}, sugar:{v:null}, chol:{v:0, src:"plant food", conf:95} },
+  { id:"long_beans", name:"Long beans", cat:"vegetable", flags:[],
+    purine:{v:null, note:"not in Kaneko; vegetables uniformly very low"}, gi:{v:null}, sugar:{v:null}, chol:{v:0, src:"plant food", conf:95} },
+  { id:"asparagus", name:"Asparagus", cat:"vegetable", flags:[],
+    purine:{v:null, note:"not in Kaneko"}, gi:{v:null}, sugar:{v:null}, chol:{v:0, src:"plant food", conf:95} },
+  { id:"lotus_root", name:"Lotus root", cat:"vegetable", flags:[],
+    purine:{v:null}, gi:{v:null}, sugar:{v:null}, chol:{v:0, src:"plant food", conf:95} },
+  { id:"red_dates", name:"Red dates", cat:"fruit", flags:[],
+    purine:{v:null}, gi:{v:null}, sugar:{v:null, note:"dried fruit; sweet; not measured"}, chol:{v:0, src:"plant food", conf:95} },
+  { id:"corn", name:"Corn", cat:"vegetable", flags:[],
+    purine:{v:null}, gi:{v:null}, sugar:{v:null}, chol:{v:0, src:"plant food", conf:95} },
+  { id:"coconut_milk", name:"Coconut milk", cat:"fat", flags:[],
+    purine:{v:null}, gi:{v:null}, sugar:{v:null, note:"coconut meat 6.23 measured; milk not found"}, chol:{v:0, src:"plant food", conf:95} },
+
+  // ---------- DRINKS ----------
+  { id:"coffee_milk", name:"Coffee with milk, no sugar", cat:"drink", flags:["dairy"],
+    purine:{v:0, src:SRC.KANEKO+" — milk; coffee negligible", conf:85}, gi:{v:null}, sugar:{v:null, note:"lactose only"}, chol:{v:null} },
+  { id:"tea_plain", name:"Tea, plain, no sugar", cat:"drink", flags:[],
+    purine:{v:0, src:"negligible", conf:85}, gi:{v:null}, sugar:{v:0, src:"no added sugar", conf:90}, chol:{v:0, src:"", conf:95} },
+  { id:"teh_tarik_kosong", name:"Teh tarik, no sugar", cat:"drink", flags:["dairy"],
+    purine:{v:0, src:SRC.KANEKO+" — milk", conf:85}, gi:{v:null}, sugar:{v:null, note:"condensed/evaporated milk lactose; no added sugar"}, chol:{v:null} },
+  { id:"coke_zero", name:"Coke Zero", cat:"drink", flags:[],
+    purine:{v:0, src:"no purine source", conf:90}, gi:{v:0, src:"no carbohydrate", conf:90}, sugar:{v:0, src:SRC.PANEL+" — bottle label", conf:95}, chol:{v:0, src:"", conf:95} },
+  { id:"beer", name:"Beer, regular ~5%", cat:"alcohol", flags:["alcohol"],
+    purine:{v:null, note:"very low purine, but ethanol raises urate via lactate — Choi 2004: strongest gout association of any beverage"}, gi:{v:89, src:SRC.BJN_BEER+"; other methods 66, 119", conf:50}, sugar:{v:0, src:SRC.LABEL, conf:85}, chol:{v:0, src:"", conf:95} },
+  { id:"wine_red", name:"Red wine, dry", cat:"alcohol", flags:["alcohol"],
+    purine:{v:null, note:"ethanol mechanism applies; weaker association than beer at moderate intake (Choi 2004)"}, gi:{v:null, note:"not GI-tested; too little carbohydrate"}, sugar:{v:1.5, src:SRC.WINE, conf:40}, chol:{v:0, src:"", conf:95} },
+  { id:"wine_white", name:"White wine, dry", cat:"alcohol", flags:["alcohol"],
+    purine:{v:null, note:"as red wine"}, gi:{v:null, note:"not GI-tested"}, sugar:{v:2.0, src:SRC.WINE, conf:40}, chol:{v:0, src:"", conf:95} },
+
+  // ---------- SAUCES / GRAVIES (liquid class carries the risk) ----------
+  { id:"sambal", name:"Sambal", cat:"sauce", flags:["sweetened","dried_seafood_likely"],
+    purine:{v:null, note:"may contain belacan (dried shrimp paste); not measured"}, gi:{v:null}, sugar:{v:null, note:"often sugared"}, chol:{v:null} },
+  { id:"laksa_gravy", name:"Laksa gravy", cat:"gravy", flags:["dried_seafood_likely","shellfish"],
+    purine:{v:null, note:"hae bee rempah conventional; not measured; extraction into liquid"}, gi:{v:null}, sugar:{v:null}, chol:{v:null} },
+  { id:"curry_gravy_chicken", name:"Curry chicken noodle gravy", cat:"gravy", flags:["dried_seafood_likely"],
+    purine:{v:null, note:"dried shrimp unconfirmed"}, gi:{v:null}, sugar:{v:null}, chol:{v:null} },
+  { id:"mee_siam_gravy", name:"Mee siam gravy (tamarind-taucheo)", cat:"gravy", flags:["sweetened","dried_seafood_likely"],
+    purine:{v:null, note:"hae bee likely; not measured"}, gi:{v:null}, sugar:{v:null, note:"characteristically sweet"}, chol:{v:null} },
+  { id:"chilli_prawn_gravy", name:"Chilli prawn gravy", cat:"gravy", flags:["shellfish","sweetened"],
+    purine:{v:null, note:"shellfish stock; extraction into liquid"}, gi:{v:null}, sugar:{v:null, note:"ketchup / sweet chilli conventional"}, chol:{v:null} },
+  { id:"sweet_sour_sauce", name:"Sweet-and-sour sauce", cat:"sauce", flags:["sweetened"],
+    purine:{v:null}, gi:{v:null}, sugar:{v:null, note:"sugar is defining; not measured"}, chol:{v:null} },
+  { id:"vegetable_curry", name:"Vegetable curry (dhal etc.)", cat:"curry", flags:["plant_protein"],
+    purine:{v:null, note:"lentils not in Kaneko"}, gi:{v:null}, sugar:{v:null}, chol:{v:0, src:"plant food", conf:95} },
+  { id:"clear_pork_stock", name:"Clear pork-rib stock", cat:"broth", flags:[],
+    purine:{v:null, note:"extraction from ribs (76); thin clear simmer"}, gi:{v:null}, sugar:{v:null}, chol:{v:null} },
+  { id:"clear_ytf_stock", name:"Yong tau fu clear stock", cat:"broth", flags:[],
+    purine:{v:null, note:"house stock unknown — may be anchovy-based"}, gi:{v:null}, sugar:{v:null}, chol:{v:null} },
+  { id:"herbal_soup", name:"Herbal double-boiled soup", cat:"broth", flags:[],
+    purine:{v:null, note:"may include dried shiitake (380); not measured"}, gi:{v:null}, sugar:{v:null}, chol:{v:null} },
+];
+
+FOODS.forEach(f=>{
+  f.purine.band = pBand(f.purine.v);
+  f.gi.band = f.gi.band || gBand(f.gi.v);
+  if(f.id==="nasi_lemak") f.gi.band="high"; // HPB classification
+  f.sugar.band = sBand(f.sugar.v);
+});
+
+// GUIDELINE THRESHOLDS — each with source. null = no guideline threshold exists.
+const GUIDE = {
+  purine_daily_mg: { v:400, src:"Japanese Society of Gout and Nucleic Acid Metabolism guideline, 400 mg/day ceiling (as cited in Kaneko 2014 context)", note:"Cannot be computed here — no portion weights recorded." },
+  purine_window_days: { v:2, src:"Zhang Y et al. Ann Rheum Dis 2012;71:1448–53 — top quintile of 2-day purine intake, OR 4.76 for recurrent flare" },
+  free_sugar_g: { ideal:25, max:50, src:"WHO 2015 free sugars guideline: <10% energy (≈50g at 2000 kcal), ideally <5% (≈25g)" },
+  cholesterol_mg: { v:null, src:"Dietary Guidelines for Americans 2015–2020 removed the 300 mg/day limit; 2020–2025 advises 'as low as possible without compromising nutritional adequacy'. No hard threshold exists.", legacy:300 },
+  alcohol: { src:"Choi HK et al. Lancet 2004;363:1277–81 — beer strongest gout association; ACR 2020 conditionally recommends limiting alcohol" },
+  gi_daily: { v:null, src:"No daily GI threshold exists in any guideline. Pattern flags only." }
+};
+
+// ============================================================
+// SEED MEALS — imported from the conversation log
+// date: null throughout — dates were never recorded. seq preserves order.
+// liquid: none | clear | concentrated | gravy   (the class that carried purine risk)
+// sameDayAs: seq of a meal known to be the same day (user-stated) — enables window alerts without dates
+// checked: true where an ingredient was confirmed on asking
+// rating: as assigned in the log — the app recomputes for new meals
+// ============================================================
+const SEED_MEALS = [
+  { seq:1,  date:null, slot:"brunch",    label:"Nasi lemak", items:["nasi_lemak","ikan_bilis","chicken_leg","egg","peanut","sambal","cucumber"], liquid:"none", checked:false, rating:"high",
+    note:"Ikan bilis garnish — first of two the same day (flare day)" },
+  { seq:2,  date:null, sameDayAs:1, slot:"dinner",    label:"Ikan bilis rice, fried chicken, herbal soup", items:["white_rice","ikan_bilis","chicken_leg","peanut","herbal_soup","leafy_greens","tomato","cucumber","sambal"], liquid:"clear", checked:false, rating:"high",
+    note:"Second ikan bilis serving same day" },
+  { seq:3,  date:null, slot:"lunch",     label:"Fried bee hoon + braised peanuts", items:["bee_hoon_fried","tau_pok","bean_sprouts","egg","peanut"], liquid:"none", checked:true, rating:"low",
+    note:"Checked: no dried shrimp. Peanuts in sweetened braising liquid." },
+  { seq:4,  date:null, slot:"lunch",     label:"Laksa", items:["yellow_noodle","laksa_gravy","tau_pok","fish_paste","egg","bean_sprouts"], liquid:"gravy", checked:false, rating:"moderate",
+    note:"Hae bee rempah, coconut gravy, drunk" },
+  { seq:5,  date:null, slot:"snack",     label:"Peanut pancake", items:["peanut_pancake"], liquid:"none", checked:false, rating:"low", note:"Sweetened" },
+  { seq:6,  date:null, slot:"dinner",    label:"Chilli prawn + fried mantou", items:["shrimp_fresh","chilli_prawn_gravy","mantou_fried"], liquid:"gravy", checked:false, rating:"high",
+    note:"Shell-on prawn, shellfish-stock gravy, bun as sponge" },
+  { seq:7,  date:null, slot:"lunch",     label:"Pork rib soup, clear", items:["pork_ribs","clear_pork_stock","potato","carrot"], liquid:"clear", checked:false, rating:"moderate", note:"One rib, gentle simmer" },
+  { seq:8,  date:null, slot:"lunch",     label:"Granola + low-fat milk", items:["granola","milk","almond"], liquid:"none", checked:false, rating:"vlow", note:"Dairy protective (Choi 2004)" },
+  { seq:9,  date:null, slot:"lunch",     label:"Yong tau fu, clear soup", items:["tofu","tau_pok","fish_paste","leafy_greens","clear_ytf_stock"], liquid:"clear", checked:false, rating:"low",
+    note:"Broth meal rated Low — thin stock, house stock unknown" },
+  { seq:10, date:null, slot:"breakfast", label:"Grilled salmon, plums, coffee", items:["salmon","plum","coffee_milk"], liquid:"none", checked:false, rating:"low", note:"Pan-seared, nothing leached" },
+  { seq:11, date:null, slot:"lunch",     label:"Yong tau fu in laksa gravy, no noodles", items:["tofu","tau_pok","leafy_greens","tomato","laksa_gravy"], liquid:"gravy", checked:false, rating:"moderate" },
+  { seq:12, date:null, slot:"lunch",     label:"Chicken thigh, rice, tempeh, long beans", items:["chicken_leg","white_rice","tempeh","long_beans","cucumber","sambal"], liquid:"none", checked:true, rating:"low",
+    note:"Checked: tempeh, not ikan bilis. ≈ rice+oil+chicken+veg study arm (GI 50)" },
+  { seq:13, date:null, slot:"lunch",     label:"Mee siam, Bibik Violet", items:["bee_hoon","mee_siam_gravy","tau_pok","egg","bean_sprouts","shrimp_fresh"], liquid:"gravy", checked:false, rating:"moderate",
+    note:"Tamarind-taucheo gravy; hae bee likely; two prawns" },
+  { seq:14, date:null, slot:"breakfast", label:"Soft-boiled eggs, sourdough, apple, coffee", items:["egg","sourdough_wheat","apple","coffee_milk"], liquid:"none", checked:false, rating:"low" },
+  { seq:15, date:null, slot:"lunch",     label:"Bone soup, carrot, lotus, peanut", items:["pork_ribs","clear_pork_stock","carrot","lotus_root","peanut"], liquid:"clear", checked:false, rating:"moderate" },
+  { seq:16, date:null, slot:"brunch",    label:"Curry chicken noodle + Coke Zero", items:["chicken_breast","yellow_noodle","curry_gravy_chicken","tau_pok","coke_zero"], liquid:"gravy", checked:false, rating:"moderate",
+    note:"Rempah unconfirmed. Drink: zero sugar." },
+  { seq:17, date:null, slot:"breakfast", label:"Soy sauce eggs, sourdough, coffee", items:["egg","sourdough_wheat","coffee_milk"], liquid:"none", checked:false, rating:"low" },
+  { seq:18, date:null, slot:"breakfast", label:"Thosai, prata, vegetable curry, sugarless teh tarik", items:["thosai","prata","vegetable_curry","teh_tarik_kosong"], liquid:"none", checked:true, rating:"low",
+    note:"Checked: vegetable curry, no added sugar in drink. Curries dipped, not drunk." },
+  { seq:19, date:null, slot:"dinner",    label:"Grilled salmon, soup, asparagus", items:["salmon","asparagus","pork_ribs","clear_pork_stock","potato","carrot"], liquid:"clear", checked:false, rating:"low",
+    note:"Broth meal rated Low — no starch, light stock" },
+  { seq:20, date:null, slot:"breakfast", label:"Snowskin mooncake + mango", items:["snowskin","mango"], liquid:"none", checked:false, rating:"vlow", note:"31g sugar/100g on pack" },
+  { seq:21, date:null, slot:"snack",     label:"Pandan chiffon + sugarless tea", items:["pandan_chiffon","tea_plain"], liquid:"none", checked:false, rating:"vlow" },
+  { seq:22, date:null, slot:"dinner",    label:"Sweet-and-sour pork, long beans with egg, pork rib soup", items:["pork_shoulder","sweet_sour_sauce","onion","long_beans","egg","pork_ribs","clear_pork_stock","red_dates","corn","carrot"], liquid:"clear", checked:true, rating:"low",
+    note:"Checked: pork only, no conpoy. Third broth meal rated Low." },
+  { seq:23, date:null, slot:"lunch",     label:"Dry bee hoon with pork lard and vegetables", items:["bee_hoon","pork_lard","bean_sprouts","leafy_greens"], liquid:"none", checked:false, rating:"low",
+    note:"Dry-tossed. Bee hoon GI 35." },
+];
+
+</script>
+<script>
+// ============================================================
+// MEALTREND — app logic
+// Version stamp convention: vYYYY:MMM:DD-HH:MM (Asia/Singapore)
+// ============================================================
+const VERSION = "v2026:SEP:06-00:00"; // HH:MM approximate — device clock unavailable; set on first edit
+
+const LS_KEY = "mealtrend.v1";
+const BANDS = {
+  purine: { vlow:{l:"Very low",c:"#1F4D46"}, low:{l:"Low",c:"#3B6B45"}, mod:{l:"Moderate",c:"#B87C12"}, high:{l:"High",c:"#AF3324"}, vhigh:{l:"Very high",c:"#7A1F14"} },
+  gi:     { low:{l:"Low",c:"#3B6B45"}, med:{l:"Medium",c:"#B87C12"}, high:{l:"High",c:"#AF3324"} },
+  sugar:  { low:{l:"Low",c:"#3B6B45"}, med:{l:"Medium",c:"#B87C12"}, high:{l:"High",c:"#AF3324"} },
+  rating: { vlow:{l:"Very low",c:"#1F4D46"}, low:{l:"Low",c:"#3B6B45"}, moderate:{l:"Moderate",c:"#B87C12"}, high:{l:"High",c:"#AF3324"} }
+};
+const RANK = { vlow:0, low:1, moderate:2, mod:2, high:3, vhigh:4 };
+const FOOD = Object.fromEntries(FOODS.map(f=>[f.id,f]));
+
+// ---------- STORE ----------
+function load(){
+  try{ const s = JSON.parse(localStorage.getItem(LS_KEY)); if(s && s.meals) return s; }catch(e){}
+  return { meals: SEED_MEALS.map(m=>({...m, id:"seed"+m.seq, source:"conversation log"})), settings:{} };
+}
+function save(){ localStorage.setItem(LS_KEY, JSON.stringify(STATE)); }
+let STATE = load();
+
+// ---------- RATING ENGINE (for new meals; seeded meals keep logged rating) ----------
+function rateMeal(m){
+  const items = m.items.map(id=>FOOD[id]).filter(Boolean);
+  const flags = new Set(items.flatMap(f=>f.flags||[]));
+  let rank = 0; const why=[];
+  items.forEach(f=>{ if(f.purine.band){ rank=Math.max(rank,RANK[f.purine.band]); } });
+  const top=items.filter(f=>f.purine.band && RANK[f.purine.band]===rank).map(f=>f.name).slice(0,2).join(", ");
+  if(rank>=3) why.push(`high-band purine item: ${top}`);
+  else if(rank===2) why.push(`moderate-band purine item: ${top}`);
+  if(flags.has("dried_seafood")){ rank=Math.max(rank,3); why.push("dried seafood present — concentrated purine (confirmed)"); }
+  else if(flags.has("dried_seafood_likely")){ rank=Math.max(rank,2); why.push("dried seafood conventional in this gravy but unconfirmed — ask the stall"); }
+  if(flags.has("organ")){ rank=Math.max(rank,3); why.push("organ meat present"); }
+  if(m.liquid==="gravy"||m.liquid==="concentrated"){ rank=Math.max(rank,2); why.push("concentrated liquid consumed — purines extract into liquid"); }
+  else if(m.liquid==="clear"){ why.push("clear stock only — extraction mild; rating follows the solids"); }
+  else if(!flags.has("dried_seafood")){ if(rank<3){ rank=Math.min(rank,1); } why.push("dry-cooked, no dried seafood — nothing extracted into a liquid"); }
+  const plantOrZero = items.length && items.every(f=>f.purine.v===0 || (f.purine.v!=null && f.purine.v<50) || (f.purine.v==null && ["fruit","vegetable","drink","cake","dessert","cereal","fat","sauce","curry"].includes(f.cat)));
+  if(plantOrZero && m.liquid==="none" && !flags.has("dried_seafood")) return {rating:"vlow", why:["no meaningful purine source, no liquid"]};
+  rank=Math.min(rank,3);
+  const map=["vlow","low","moderate","high"];
+  return { rating: map[Math.max(rank,1)], why };
+}
+
+// ---------- ANALYSIS ----------
+function analyse(meals){
+  const n = meals.length;
+  const byRating = {vlow:0,low:0,moderate:0,high:0};
+  meals.forEach(m=>byRating[m.rating]++);
+  const liquid = meals.filter(m=>m.liquid!=="none");
+  const dry = meals.filter(m=>m.liquid==="none");
+  const liquidElevated = liquid.filter(m=>RANK[m.rating]>=2).length;
+  const dryLow = dry.filter(m=>RANK[m.rating]<=1).length;
+  const dryNoSea = dry.filter(m=>!m.items.some(id=>FOOD[id]?.flags?.includes("dried_seafood")));
+  const dryNoSeaLow = dryNoSea.filter(m=>RANK[m.rating]<=1).length;
+  const flagCount = {};
+  const catCount = {};
+  meals.forEach(m=>m.items.forEach(id=>{ const f=FOOD[id]; if(!f) return; (f.flags||[]).forEach(fl=>flagCount[fl]=(flagCount[fl]||0)+1); catCount[f.cat]=(catCount[f.cat]||0)+1; }));
+  const gravy = meals.filter(m=>m.liquid==="gravy").length;
+  const clear = meals.filter(m=>m.liquid==="clear").length;
+  const checked = meals.filter(m=>m.checked).length;
+  const highGI = meals.filter(m=>m.items.some(id=>FOOD[id]?.gi?.band==="high")).length;
+  const starch = meals.filter(m=>m.items.some(id=>["rice","rice dish","noodle","noodle dish","bread","bun","cake","snack"].includes(FOOD[id]?.cat))).length;
+  const sweet = meals.filter(m=>m.items.some(id=>FOOD[id]?.flags?.includes("sweetened"))).length;
+  const dairy = meals.filter(m=>m.items.some(id=>FOOD[id]?.flags?.includes("dairy"))).length;
+  const egg = meals.filter(m=>m.items.some(id=>FOOD[id]?.flags?.includes("egg"))).length;
+  const plant = meals.filter(m=>m.items.some(id=>FOOD[id]?.flags?.includes("plant_protein"))).length;
+  const driedSea = meals.filter(m=>m.items.some(id=>FOOD[id]?.flags?.includes("dried_seafood"))).length;
+  const alcohol = meals.filter(m=>m.items.some(id=>FOOD[id]?.flags?.includes("alcohol"))).length;
+  const organ = meals.filter(m=>m.items.some(id=>FOOD[id]?.flags?.includes("organ"))).length;
+  return { n, byRating, liquid:liquid.length, dry:dry.length, liquidElevated, dryLow, dryNoSea:dryNoSea.length, dryNoSeaLow, gravy, clear, checked, highGI, starch, sweet, dairy, egg, plant, driedSea, alcohol, organ, catCount };
+}
+
+// ---------- ALERTS ----------
+// Works on dates if present, otherwise treats consecutive sequence entries as adjacent days.
+function windowOf(meals, i, days){
+  const m = meals[i];
+  if(m.date){ const t=new Date(m.date).getTime(); return meals.filter(x=>x.date && Math.abs(new Date(x.date).getTime()-t) <= days*86400000); }
+  // no date: only meals explicitly linked as same-day count
+  const linked = meals.filter(x=>x.sameDayAs===m.seq || m.sameDayAs===x.seq || (x.sameDayAs && x.sameDayAs===m.sameDayAs));
+  return [m, ...linked.filter(x=>x!==m)];
+}
+function alerts(meals){
+  const out=[];
+  const sorted=[...meals].sort((a,b)=>(a.seq||0)-(b.seq||0));
+  const has=(m,fl)=>m.items.some(id=>FOOD[id]?.flags?.includes(fl));
+  sorted.forEach((m,i)=>{
+    const w1 = windowOf(sorted,i,1), w2 = windowOf(sorted,i,2);
+    const dried = w1.filter(x=>has(x,"dried_seafood")).length;
+    if(dried>=2 && has(m,"dried_seafood")) out.push({lvl:"red", seq:m.seq, t:"Two dried-seafood meals within a day", d:"This is the exact pattern of the flare day (meals 1 and 2). Dried anchovy is 1,109 mg/100g — roughly 36 g reaches the 400 mg daily ceiling alone.", src:GUIDE.purine_window_days.src});
+    if(has(m,"organ")) out.push({lvl:"red", seq:m.seq, t:"Organ meat", d:"Liver 285–312 mg/100g, high band. ACR 2020 conditionally recommends limiting.", src:"ACR 2020 gout guideline"});
+    const conc = w2.filter(x=>x.liquid==="gravy"||x.liquid==="concentrated").length;
+    if(conc>=2 && (m.liquid==="gravy"||m.liquid==="concentrated")) out.push({lvl:"amber", seq:m.seq, t:"Two concentrated gravies within 48 hours", d:"The 2-day intake window is what predicted recurrent flares in Zhang 2012 (top quintile OR 4.76). Leave a third of the gravy.", src:GUIDE.purine_window_days.src});
+    if(has(m,"alcohol")) out.push({lvl:"amber", seq:m.seq, t:"Alcohol", d:"Beer had the strongest gout association of any beverage in Choi 2004 — despite near-zero sugar. Mechanism is ethanol, not purine.", src:GUIDE.alcohol.src});
+    const sw = w1.filter(x=>has(x,"sweetened")).length;
+    if(sw>=2 && has(m,"sweetened")) out.push({lvl:"amber", seq:m.seq, t:"Two sweetened items within a day", d:"WHO: free sugars <10% energy (≈50 g), ideally <5% (≈25 g). Only two items in the library carry a measured sugar figure — this alert counts flags, not grams.", src:GUIDE.free_sugar_g.src});
+    const hg = w1.filter(x=>x.items.some(id=>FOOD[id]?.gi?.band==="high")).length;
+    if(hg>=2 && m.items.some(id=>FOOD[id]?.gi?.band==="high")) out.push({lvl:"amber", seq:m.seq, t:"Two high-GI starch meals within a day", d:"Pattern flag, not a guideline threshold — no daily GI limit exists. Composition lowers it: rice 96 → 50 with oil, protein and vegetables in the same study.", src:GUIDE.gi_daily.src});
+  });
+  // dedupe by seq+title
+  const seen=new Set(); return out.filter(a=>{const k=a.seq+a.t; if(seen.has(k)) return false; seen.add(k); return true;});
+}
+
+// ---------- RECOMMENDATIONS (rule-based, computed from the log) ----------
+function recommend(A){
+  const more=[], less=[];
+  const pct=x=>Math.round(100*x/A.n);
+  // MORE
+  more.push({t:"Eggs and dairy", d:`Egg is 0 mg purine; milk 0 and carries a protective association (Choi 2004). Present in ${A.egg} and ${A.dairy} of ${A.n} meals.`, src:"Kaneko 2014; Choi NEJM 2004"});
+  more.push({t:"Dry-cooked protein, no dried garnish", d:`${A.dryNoSeaLow} of ${A.dryNoSea} dry-cooked meals without dried seafood rated Low or below. Grilled, pan-seared, stir-fried, dry-tossed.`, src:"This log"});
+  more.push({t:"Tofu, tempeh, bee hoon over yellow noodle", d:`Plant purines carry a weaker flare signal (Zhang 2012: OR 1.39 vs 2.41 animal). Bee hoon GI 35 — lowest of 15 Singapore foods tested.`, src:"Zhang 2012; Sun 2015"});
+  more.push({t:"Rice with fat, protein and vegetables — not alone", d:"Plain rice 96 → 50 in the same study when oil, chicken and vegetables were added. Your chicken-thigh-tempeh plate already does this.", src:"Henry 2021 compendium, Singapore rice study"});
+  more.push({t:"Sugarless drinks", d:`Three logged already (Coke Zero, teh tarik kosong, plain tea). Removes the fructose mechanism entirely.`, src:"ACR 2020 (conditional, low certainty)"});
+  // LESS
+  if(A.driedSea) less.push({t:"Dried seafood garnishes", d:`${A.driedSea} meals. Ikan bilis 1,109 mg/100g — 9× chicken. Skip the garnish; keep the rice and chicken.`, src:"Kaneko 2014"});
+  if(A.gravy) less.push({t:"Concentrated rempah gravies, drunk", d:`${A.gravy} meals (${pct(A.gravy)}%). ${A.liquidElevated} of ${A.liquid} liquid meals rated Moderate or above. Leave a third of the gravy — the solids were fine every time.`, src:"This log; water-soluble purine extraction"});
+  less.push({t:"Shell-on prawn in shellfish stock", d:"Prawn 53–273 mg/100g by species, plus shellfish stock extraction, plus a fried bun as sponge — three factors stacked in one meal.", src:"Kaneko 2014"});
+  if(A.sweet) less.push({t:"Sweetened gravies and dips", d:`${A.sweet} meals with a sweetened element. Mee siam, sweet-and-sour, sambal, chilli prawn. Only the snowskin (30.9 g/100g) has a measured figure.`, src:"FSA bands; WHO 2015"});
+  less.push({t:"Two risk meals in one day", d:"The flare day was two ikan bilis meals within hours. The 48-hour window, not the single plate, is the unit that matters.", src:"Zhang 2012"});
+  return {more, less};
+}
+
+// ---------- SVG CHART HELPERS ----------
+const svg=(w,h,inner)=>`<svg viewBox="0 0 ${w} ${h}" width="100%" xmlns="http://www.w3.org/2000/svg" style="font-family:'IBM Plex Sans',sans-serif">${inner}</svg>`;
+function hbars(rows, opts={}){ // rows: [{label, v, band, color, conf}]
+  const W=360, rowH=26, pad=4, labW=opts.labW||150, maxV=opts.max||Math.max(...rows.map(r=>r.v||0),1);
+  const H=rows.length*rowH+pad*2;
+  let s="";
+  rows.forEach((r,i)=>{
+    const y=pad+i*rowH; const bw=Math.max(2,(W-labW-60)*(r.v||0)/maxV);
+    s+=`<text x="0" y="${y+17}" font-size="11" fill="#13170F">${esc(r.label)}</text>`;
+    s+=`<rect x="${labW}" y="${y+6}" width="${bw}" height="14" rx="2" fill="${r.color}"/>`;
+    s+=`<text x="${labW+bw+6}" y="${y+17}" font-size="11" font-family="IBM Plex Mono" fill="#13170F">${r.v==null?"n/a":r.v}</text>`;
+    if(r.conf!=null) s+=`<text x="${W}" y="${y+17}" text-anchor="end" font-size="9.5" font-family="IBM Plex Mono" fill="#5D6656">${r.conf}%</text>`;
+  });
+  return svg(W,H,s);
+}
+function stackedSeq(meals){ // rating over sequence
+  const W=360,H=120,pad=6; const n=meals.length; const bw=(W-pad*2)/n;
+  let s=`<line x1="${pad}" y1="${H-20}" x2="${W-pad}" y2="${H-20}" stroke="#C9D0C2"/>`;
+  meals.forEach((m,i)=>{ const h=(RANK[m.rating]+1)*20; const c=BANDS.rating[m.rating].c;
+    s+=`<rect x="${pad+i*bw+1}" y="${H-20-h}" width="${Math.max(2,bw-2)}" height="${h}" fill="${c}" rx="1"><title>#${m.seq} ${esc(m.label)} — ${BANDS.rating[m.rating].l}</title></rect>`;
+    if(m.liquid!=="none") s+=`<circle cx="${pad+i*bw+bw/2}" cy="${H-10}" r="2.5" fill="${m.liquid==="clear"?"#B87C12":"#AF3324"}"/>`;
+  });
+  return svg(W,H,s);
+}
+function donut(parts){ // [{v,color,label}]
+  const total=parts.reduce((a,p)=>a+p.v,0)||1; const R=44, r=28, cx=60, cy=60; let a0=-Math.PI/2; let s="";
+  parts.forEach(p=>{ const a1=a0+2*Math.PI*p.v/total; const large=(a1-a0)>Math.PI?1:0;
+    const x0=cx+R*Math.cos(a0),y0=cy+R*Math.sin(a0),x1=cx+R*Math.cos(a1),y1=cy+R*Math.sin(a1);
+    const xi0=cx+r*Math.cos(a1),yi0=cy+r*Math.sin(a1),xi1=cx+r*Math.cos(a0),yi1=cy+r*Math.sin(a0);
+    if(p.v>0) s+=`<path d="M${x0},${y0} A${R},${R} 0 ${large} 1 ${x1},${y1} L${xi0},${yi0} A${r},${r} 0 ${large} 0 ${xi1},${yi1} Z" fill="${p.color}"><title>${esc(p.label)}: ${p.v}</title></path>`;
+    a0=a1; });
+  return svg(120,120,s);
+}
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+// ---------- VIEWS ----------
+const $=s=>document.querySelector(s);
+function chip(band,kind){ const b=BANDS[kind][band]; return b?`<span class="chip" style="background:${b.c}">${b.l}</span>`:`<span class="chip na">n/a</span>`; }
+function val(x,unit=""){ return x==null?`<span class="na">not available</span>`:`<span class="mono">${x}${unit}</span>`; }
+
+function viewDashboard(){
+  const A=analyse(STATE.meals); const al=alerts(STATE.meals); const reds=al.filter(a=>a.lvl==="red").length, ambers=al.filter(a=>a.lvl==="amber").length;
+  return `
+  <section class="hero">
+    <div class="stat"><span class="n ${A.dryNoSeaLow===A.dryNoSea?'good':''}">${A.dryNoSeaLow}/${A.dryNoSea}</span><p>Dry-cooked, no dried seafood → rated Low or below</p></div>
+    <div class="stat"><span class="n hot">${A.liquidElevated}/${A.liquid}</span><p>Liquid meals rated Moderate or above</p></div>
+    <div class="stat"><span class="n ${reds?'hot':'good'}">${reds}</span><p>Red alerts</p></div>
+    <div class="stat"><span class="n ${ambers?'warm':'good'}">${ambers}</span><p>Amber alerts</p></div>
+  </section>
+  <h2>Purine rating over sequence</h2>
+  <p class="sub">Bar height = rating. Dot beneath = liquid consumed (amber clear, red concentrated). No dates recorded for seeded meals; x-axis is order.</p>
+  ${stackedSeq([...STATE.meals].sort((a,b)=>a.seq-b.seq))}
+  <div class="row"><div>${donut([{v:A.byRating.vlow,color:BANDS.rating.vlow.c,label:"Very low"},{v:A.byRating.low,color:BANDS.rating.low.c,label:"Low"},{v:A.byRating.moderate,color:BANDS.rating.moderate.c,label:"Moderate"},{v:A.byRating.high,color:BANDS.rating.high.c,label:"High"}])}</div>
+  <div class="legend">${Object.entries(A.byRating).map(([k,v])=>`<div><i style="background:${BANDS.rating[k].c}"></i>${BANDS.rating[k].l} <b>${v}</b></div>`).join("")}</div></div>
+  <h2>The finding that holds</h2>
+  <p class="sub">Across ${A.n} meals: dry-cooked meals with no dried seafood rated Low or below ${A.dryNoSeaLow}/${A.dryNoSea} times. The one dry-cooked meal rated High (nasi lemak) had an ikan bilis garnish — the exception is the garnish, not the cooking. Liquid meals were <em>mostly</em> elevated (${A.liquidElevated}/${A.liquid}); the exceptions were thin clear stocks with one low-purine meat. Extraction is a spectrum, not a switch.</p>
+  <p class="sub"><b>Seeded meals keep the rating assigned in the log.</b> Open any meal to see what the engine would rate it now — several early clear-soup meals were rated Moderate before the spectrum finding; the engine now rates them Low.</p>`;
+}
+
+function viewLog(){
+  const meals=[...STATE.meals].sort((a,b)=>b.seq-a.seq);
+  return `<button class="btn primary" onclick="openAdd()">+ Add meal</button>
+  <div class="list">${meals.map(m=>`<div class="meal" onclick="openMeal('${m.id}')">
+    <div class="mh"><span class="seq">#${m.seq}</span><span class="lab">${esc(m.label)}</span>${chip(m.rating,'rating')}</div>
+    <div class="mm">${m.date||'<span class="na">date not recorded</span>'} · ${m.slot} · liquid: ${m.liquid}${m.checked?' · <b>checked</b>':''}</div>
+    ${m.note?`<div class="mn">${esc(m.note)}</div>`:''}
+    ${m.ai&&!m.ai.error?`<div class="mn ai"><b>AI:</b> ${esc(m.ai.overall||"")}</div>`:''}
+    ${m.thumb?`<img class="thumb sm" src="data:image/jpeg;base64,${m.thumb}" alt="">`:''}
+  </div>`).join("")}</div>`;
+}
+
+function viewRankings(kind){
+  const eaten=new Set(STATE.meals.flatMap(m=>m.items));
+  const key=kind; const unit={purine:" mg",gi:"",sugar:" g",chol:" mg"}[kind];
+  const bandKind={purine:"purine",gi:"gi",sugar:"sugar",chol:null}[kind];
+  const rows=FOODS.filter(f=>eaten.has(f.id)).map(f=>({f, v:f[key].v, band:f[key].band, conf:f[key].conf, src:f[key].src, note:f[key].note}));
+  const withV=rows.filter(r=>r.v!=null).sort((a,b)=>b.v-a.v); const noV=rows.filter(r=>r.v==null);
+  const colorFor=r=>{ if(kind==="chol"){ return r.v>=300?"#AF3324":r.v>=100?"#B87C12":"#3B6B45"; } return (BANDS[bandKind][r.band]||{c:"#888"}).c; };
+  const title={purine:"Purine, mg/100 g — foods you've eaten",gi:"Glycemic index — foods you've eaten",sugar:"Sugar, g/100 g — foods you've eaten",chol:"Dietary cholesterol, mg/100 g — foods you've eaten"}[kind];
+  const note={purine:"Kaneko et al. 2014, HPLC. Bands: <50 very low · 50–100 low · 100–200 moderate · 200–300 high · >300 very high. Log-scale not used here so bars are true proportion.",
+    gi:"Bands: ≤55 low · 56–69 medium · ≥70 high. Nasi lemak shown at HPB band midpoint (85) — real range 70–100.",
+    sugar:"FSA bands: ≤5 low · 5–22.5 medium · >22.5 high per 100 g. Only items with a measured figure appear.",
+    chol:"<b>No guideline threshold exists.</b> The 300 mg/day limit was removed from US Dietary Guidelines in 2015. Colour here is a ranking aid only: >300 red, 100–300 amber, <100 green. Egg yolk's 1,085 is per 100 g of yolk; one yolk is ~17 g."}[kind];
+  return `<h2>${title}</h2><p class="sub">${note}</p>
+  ${withV.length?hbars(withV.map(r=>({label:r.f.name.length>26?r.f.name.slice(0,25)+"…":r.f.name, v:r.v, color:colorFor(r), conf:r.conf})),{labW:150}):'<p class="na">No measured values among foods eaten.</p>'}
+  ${noV.length?`<h3>Not measured</h3><ul class="nalist">${noV.map(r=>`<li><b>${esc(r.f.name)}</b>${r.note?` — ${esc(r.note)}`:''}</li>`).join("")}</ul>`:''}
+  <h3>Sources</h3><ul class="src">${[...new Set(withV.map(r=>r.src).filter(Boolean))].map(s=>`<li>${esc(s)}</li>`).join("")}</ul>`;
+}
+
+function viewLenses(){
+  const A=analyse(STATE.meals); const R=recommend(A);
+  const lens=(name,basis,body)=>`<div class="lens"><h3>${name}</h3><p class="basis">${basis}</p>${body}</div>`;
+  return `<h2>AI dietitian review of the whole log</h2>
+  <button class="btn primary" onclick="runLogAI()" ${AI.ready()?"":"disabled title='Add API key under More → AI'"}>${STATE.review?"Re-run review":"Run review"}</button>
+  <div id="reviewBox">${renderReview(STATE.review)}</div>
+  <h2>Rule-based lenses</h2>
+  <p class="sub"><b>These are rule engines derived from published guidelines, not consultations with practitioners.</b> Each lens names its source. Nothing here was measured on you.</p>
+  ${lens("Rheumatology · gout", "ACR 2020 guideline (FitzGerald et al.); Zhang 2012 Ann Rheum Dis; Choi 2004 NEJM & Lancet; Kaneko 2014 purine table",
+    `<ul><li>Dried seafood in ${A.driedSea} of ${A.n} meals — the single densest purine source you eat.</li><li>Concentrated gravies in ${A.gravy} meals; clear stocks in ${A.clear}. ${A.liquidElevated} of ${A.liquid} liquid meals rated Moderate+.</li><li>Alcohol: ${A.alcohol}. Organ meat: ${A.organ}. Both absent — two of the largest guideline risk categories.</li><li>Dairy in ${A.dairy} meals — protective association.</li><li>Diet moves serum urate ~1.0–1.2 mg/dL; genetics and renal handling dominate. <b>A serum urate test outranks every figure in this app.</b></li></ul>`)}
+  ${lens("Diabetes · glycemic", "HPB HealthHub GI table (2025); Henry et al. 2021 compendium; Atkinson et al. 2021",
+    `<ul><li>High-GI starch in ${A.highGI} of ${A.n} meals; starch of any kind in ${A.starch}.</li><li>Composition beats substitution: plain rice 96 → 50 with oil, protein and vegetables. You don't need less rice — you need rice not eaten alone.</li><li>Bee hoon (35) is your lowest-GI staple; nasi lemak (70–100, HPB) your highest.</li><li>No daily GI threshold exists in any guideline — flags here are patterns, not limits.</li></ul>`)}
+  ${lens("Cardiology · lipids", "Dietary Guidelines for Americans 2015–2020 and 2020–2025; AHA 2019 science advisory",
+    `<ul><li>The 300 mg/day dietary cholesterol limit was <b>removed in 2015</b>. Current guidance: as low as possible without compromising nutritional adequacy. <b>No red alert fires on cholesterol</b> because no threshold exists to fire it on.</li><li>Cholesterol data in this library is thin — ${FOODS.filter(f=>f.chol.v!=null && f.chol.v>0).length} measured values. Pork cuts not retrieved.</li><li>Saturated fat matters more than dietary cholesterol for blood lipids per current consensus — and this app does not track it. Pork lard, coconut milk and fried items are where it sits in your log.</li><li>Eggs: yolk 1,085 mg/100 g but one yolk ≈17 g. Four eggs ≈ 4 yolks — a real quantity, and the one item where cholesterol and purine point opposite ways.</li></ul>`)}
+  ${lens("Singapore hawker", "HPB HealthHub; Henry 2021 compendium (Singapore & Malaysia studies)",
+    `<ul><li>Asking the stall worked ${A.checked} times of ${A.checked} — every answer lowered the rating. Your kitchen uses less dried seafood than default assumptions.</li><li>Rempah gravies are the largest unresolved gap: hae bee is conventional but never confirmed in ${A.gravy} gravy meals.</li><li>Order yong tau fu in clear soup, not laksa gravy. Same tofu and greens, different liquid.</li></ul>`)}
+  <h2>Eat more</h2>${R.more.map(r=>`<div class="rec more"><b>${esc(r.t)}</b><p>${esc(r.d)}</p><span class="src">${esc(r.src)}</span></div>`).join("")}
+  <h2>Eat less</h2>${R.less.map(r=>`<div class="rec less"><b>${esc(r.t)}</b><p>${esc(r.d)}</p><span class="src">${esc(r.src)}</span></div>`).join("")}`;
+}
+
+function viewAlerts(){
+  const al=alerts(STATE.meals).sort((a,b)=>b.seq-a.seq);
+  if(!al.length) return `<p class="ok">No alerts. The log shows no organ meat, no alcohol, and no repeated dried-seafood day beyond the original flare day.</p>`;
+  return `<p class="sub">Alerts run on flags and frequency, not on mg totals — no meal has a portion weight. Windows use dates where recorded, otherwise adjacent entries.</p>
+  ${al.map(a=>`<div class="alert ${a.lvl}"><div class="ah">${a.lvl==="red"?"🔴":"🟠"} <b>${esc(a.t)}</b> <span class="seq">#${a.seq}</span></div><p>${esc(a.d)}</p><span class="src">${esc(a.src)}</span></div>`).join("")}`;
+}
+
+function viewLibrary(){
+  return `<p class="sub">${FOODS.length} foods. Every value carries source and confidence. <b>null means not measured — never estimated.</b></p>
+  <input class="search" placeholder="search foods" oninput="filterLib(this.value)">
+  <div id="lib">${libRows(FOODS)}</div>`;
+}
+function libRows(list){ return list.map(f=>`<div class="lib"><div class="lh"><b>${esc(f.name)}</b> <span class="cat">${esc(f.cat)}</span></div>
+  <div class="lg"><span>Purine ${val(f.purine.v," mg")} ${chip(f.purine.band,'purine')}</span><span>GI ${val(f.gi.v)} ${chip(f.gi.band,'gi')}</span><span>Sugar ${val(f.sugar.v," g")} ${chip(f.sugar.band,'sugar')}</span><span>Chol ${val(f.chol.v," mg")}</span></div>
+  ${(f.flags||[]).length?`<div class="flags">${f.flags.map(x=>`<i>${x.replace("_"," ")}</i>`).join("")}</div>`:''}
+  <div class="ls">${[f.purine,f.gi,f.sugar,f.chol].filter(x=>x.src||x.note).map(x=>`<div>${x.src?esc(x.src):''}${x.note?` <em>${esc(x.note)}</em>`:''}${x.conf!=null?` <span class="conf">${x.conf}%</span>`:''}</div>`).join("")}</div></div>`).join(""); }
+function filterLib(q){ q=q.toLowerCase(); $("#lib").innerHTML=libRows(FOODS.filter(f=>f.name.toLowerCase().includes(q)||f.cat.includes(q))); }
+
+function viewSettings(){
+  return viewAISettings()+`<h2>Data</h2>
+  <button class="btn" onclick="exportJSON()">Export JSON</button>
+  <label class="btn">Import JSON<input type="file" accept="application/json" onchange="importJSON(this)" hidden></label>
+  <button class="btn danger" onclick="if(confirm('Reset to the 23 seeded meals? Your additions will be lost.')){localStorage.removeItem(LS_KEY);location.reload();}">Reset to seed</button>
+  <h2>What this app does not do</h2>
+  <ul class="sub">
+    <li>It does not compute daily purine in mg — no portion weights exist.</li>
+    <li>Photo analysis and the dietitian review need your own API key (above). Without it, everything else works.</li>
+    <li>It does not sync — localStorage only, matching your other PWAs. Export regularly.</li>
+    <li>It does not diagnose. The original toe episode was never clinically confirmed as gout.</li>
+    <li>It has no cholesterol alert — no guideline threshold exists since 2015.</li>
+  </ul>
+  <h2>Sources</h2><ul class="src">${Object.values(SRC).map(s=>`<li>${esc(s)}</li>`).join("")}<li>${esc(GUIDE.free_sugar_g.src)}</li><li>${esc(GUIDE.cholesterol_mg.src)}</li></ul>
+  <p class="ver">${VERSION}</p>`;
+}
+
+// ---------- ADD / EDIT MEAL ----------
+let ADD = null;
+function openAdd(m){
+  PENDING_IMG=null;
+  ADD = m ? JSON.parse(JSON.stringify(m)) : { id:"m"+Date.now(), seq:Math.max(0,...STATE.meals.map(x=>x.seq))+1, date:new Date().toISOString().slice(0,10), slot:"lunch", label:"", items:[], liquid:"none", checked:false, note:"" };
+  renderModal();
+}
+function openMeal(id){ const m=STATE.meals.find(x=>x.id===id); if(m) openAdd(m); }
+function renderModal(){
+  const r=rateMeal(ADD);
+  $("#modal").innerHTML=`<div class="mbox">
+    <h2>${ADD.source?'Meal #'+ADD.seq:'New meal'}</h2>
+    <label>Label<input value="${esc(ADD.label)}" oninput="ADD.label=this.value"></label>
+    <div class="grid2"><label>Date<input type="date" value="${ADD.date||''}" onchange="ADD.date=this.value||null"></label>
+    <label>Slot<select onchange="ADD.slot=this.value">${["breakfast","brunch","lunch","snack","dinner"].map(s=>`<option ${ADD.slot===s?'selected':''}>${s}</option>`).join("")}</select></label></div>
+    <label>Liquid consumed<select onchange="ADD.liquid=this.value;renderModal()">${[["none","None — dry-cooked"],["clear","Clear stock, gently simmered"],["concentrated","Concentrated / long-reduced broth"],["gravy","Rempah gravy or shellfish stock"]].map(([v,l])=>`<option value="${v}" ${ADD.liquid===v?'selected':''}>${l}</option>`).join("")}</select></label>
+    <label class="chk"><input type="checkbox" ${ADD.checked?'checked':''} onchange="ADD.checked=this.checked"> Ingredient checked with cook / stall</label>
+    <label class="fld">Photo <input type="file" accept="image/*" capture="environment" onchange="onPhoto(this)"></label>
+    ${ADD.thumb?`<img class="thumb" src="data:image/jpeg;base64,${ADD.thumb}" alt="">`:""}
+    <button id="aiBtn" class="btn primary" onclick="runMealAI()" ${AI.ready()?"":"disabled title='Add API key under More → AI'"}>${ADD.ai?"Re-analyse with AI":"Analyse with AI"}${PENDING_IMG?" (photo)":""}</button>
+    ${renderAI(ADD.ai)}
+    <label>Foods <input class="search" placeholder="type to add…" oninput="pickList(this.value)"></label>
+    <div id="pick"></div>
+    <div class="picked">${ADD.items.map(id=>`<span class="tag">${esc(FOOD[id]?.name||id)}<b onclick="ADD.items=ADD.items.filter(x=>x!=='${id}');renderModal()">×</b></span>`).join("")}</div>
+    <label>Note<textarea oninput="ADD.note=this.value">${esc(ADD.note||'')}</textarea></label>
+    <div class="rating"><b>Computed rating:</b> ${chip(r.rating,'rating')}<ul>${r.why.map(w=>`<li>${esc(w)}</li>`).join("")}</ul>${ADD.source?`<p class="sub">Logged rating was <b>${BANDS.rating[ADD.rating].l}</b>. Saving keeps the computed one.</p>`:''}</div>
+    <div class="mbtn"><button class="btn primary" onclick="saveMeal()">Save</button><button class="btn" onclick="closeModal()">Cancel</button>${ADD.source?'':`<button class="btn danger" onclick="delMeal()">Delete</button>`}</div>
+  </div>`;
+  $("#modal").classList.add("open");
+}
+function pickList(q){ q=q.toLowerCase(); if(!q){$("#pick").innerHTML="";return;} const hits=FOODS.filter(f=>f.name.toLowerCase().includes(q)&&!ADD.items.includes(f.id)).slice(0,8);
+  $("#pick").innerHTML=hits.map(f=>`<div class="hit" onclick="ADD.items.push('${f.id}');renderModal()">${esc(f.name)} <span class="cat">${esc(f.cat)}</span></div>`).join(""); }
+function saveMeal(){ if(!ADD.label.trim()){alert("Give the meal a label.");return;} const r=rateMeal(ADD); ADD.rating=r.rating; delete ADD.source;
+  const i=STATE.meals.findIndex(x=>x.id===ADD.id); if(i>=0) STATE.meals[i]=ADD; else STATE.meals.push(ADD); save(); closeModal(); route(); }
+function delMeal(){ if(!confirm("Delete this meal?")) return; STATE.meals=STATE.meals.filter(x=>x.id!==ADD.id); save(); closeModal(); route(); }
+function closeModal(){ $("#modal").classList.remove("open"); $("#modal").innerHTML=""; }
+
+// ---------- EXPORT / IMPORT ----------
+function exportJSON(){ const b=new Blob([JSON.stringify(STATE,null,2)],{type:"application/json"}); const a=document.createElement("a"); a.href=URL.createObjectURL(b); a.download=`mealtrend-${new Date().toISOString().slice(0,10)}.json`; a.click(); }
+function importJSON(inp){ const f=inp.files[0]; if(!f) return; const rd=new FileReader(); rd.onload=()=>{ try{ const s=JSON.parse(rd.result); if(!s.meals) throw 0; STATE=s; save(); route(); alert("Imported "+s.meals.length+" meals."); }catch(e){ alert("Not a valid MealTrend export."); } }; rd.readAsText(f); }
+
+// ---------- ROUTER ----------
+const TABS=[["dash","Home"],["log","Log"],["rank","Rank"],["lens","Advice"],["alerts","Alerts"],["lib","Library"],["set","More"]];
+let RANKKIND="purine";
+function route(){
+  const h=(location.hash||"#dash").slice(1);
+  $("#tabs").innerHTML=TABS.map(([k,l])=>`<a href="#${k}" class="${h===k?'on':''}">${l}</a>`).join("");
+  let body="";
+  if(h==="dash") body=viewDashboard();
+  else if(h==="log") body=viewLog();
+  else if(h==="rank") body=`<div class="seg">${[["purine","Purine"],["gi","GI"],["sugar","Sugar"],["chol","Cholesterol"]].map(([k,l])=>`<button class="${RANKKIND===k?'on':''}" onclick="RANKKIND='${k}';route()">${l}</button>`).join("")}</div>`+viewRankings(RANKKIND);
+  else if(h==="lens") body=viewLenses();
+  else if(h==="alerts") body=viewAlerts();
+  else if(h==="lib") body=viewLibrary();
+  else body=viewSettings();
+  $("#view").innerHTML=body;
+  const badge=alerts(STATE.meals).filter(a=>a.lvl==="red").length; $("#badge").textContent=badge?badge:""; $("#badge").style.display=badge?"inline-block":"none";
+}
+window.addEventListener("hashchange",route);
+window.addEventListener("load",()=>{ route(); if("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js").catch(()=>{}); });
+
+</script>
+<script>
+// ============================================================
+// AI DIETITIAN LAYER — bring your own API key
+// Key lives in localStorage on this device only. Never commit it.
+// Every figure the model may cite comes from FOODS / GUIDE. "not available" is a valid answer.
+// ============================================================
+
+const AI = {
+  key(){ return (STATE.settings||{}).apiKey || ""; },
+  model(){ return (STATE.settings||{}).model || "claude-sonnet-5"; },
+  ready(){ return !!this.key(); },
+
+  // Compact library the model is allowed to cite from
+  libraryText(){
+    return FOODS.map(f=>{
+      const p=f.purine.v==null?"n/a":f.purine.v+"mg"; const g=f.gi.v==null?(f.gi.band?f.gi.band+"(band)":"n/a"):f.gi.v;
+      const s=f.sugar.v==null?"n/a":f.sugar.v+"g"; const c=f.chol.v==null?"n/a":f.chol.v+"mg";
+      return `${f.id} | ${f.name} | purine ${p} conf${f.purine.conf??"-"} | GI ${g} conf${f.gi.conf??"-"} | sugar/100g ${s} | chol/100g ${c} | flags ${(f.flags||[]).join(",")||"-"}${f.purine.note?" | note: "+f.purine.note:""}${f.gi.note?" | gi-note: "+f.gi.note:""}`;
+    }).join("\n");
+  },
+
+  system(){
+    return `You are a registered dietitian with sub-specialty experience in rheumatology nutrition (gout / hyperuricaemia) and diabetes nutrition (glycaemic management), working with a Singapore-based adult male who had a single unconfirmed podagra episode after two dried-anchovy meals in one day. You are analysing his meals.
+
+NON-NEGOTIABLE RULES
+1. The FOOD LIBRARY below is the ONLY source of numeric figures you may state. If a food or a figure is not in it, write "not available" — do not estimate, do not recall a number from elsewhere.
+2. Cite the library id (e.g. [ikan_bilis]) or guideline id (e.g. [GUIDE:purine_window_days]) next to every figure or threshold you use.
+3. Never compute a daily purine total in mg. No meal has a weighed portion.
+4. Dietary cholesterol has NO guideline threshold (removed from US Dietary Guidelines 2015). Rank and note it; never alarm on it.
+5. Do not diagnose. The podagra episode was never clinically confirmed. When relevant, say a serum urate test outranks any dietary inference.
+6. Singapore hawker and home dishes vary by stall and kitchen. When an ingredient is conventional but unconfirmed (e.g. hae bee in laksa rempah, belacan in sambal, conpoy in a double-boiled soup), DO NOT assume it. State it as unconfirmed and put a specific question in "questions_to_ask". This user's answers to such questions have lowered the rating 4 times out of 4.
+7. Purine rating logic, in order: highest purine band among items → confirmed dried seafood or organ meat forces at least High → a gravy conventionally containing dried seafood (unconfirmed) forces at least Moderate → concentrated liquid or gravy consumed forces at least Moderate → clear gently-simmered stock: rating follows the solids → dry-cooked with no dried seafood: cap at Low unless a High-band item is present.
+8. Glycaemic reasoning: GI is per reference food; composite hawker dishes rarely have a tested value. Composition matters more than substitution — in one Singapore study plain white rice measured 96 and the same rice with oil, chicken and vegetables measured 50 [white_rice][rice_oil_chicken_veg]. Say so when the plate has protein/fat/vegetables alongside starch.
+9. Be concrete and short. A working dietitian's note, not an essay. Prefer "leave a third of the gravy" over "reduce intake".
+10. Return ONLY valid JSON matching the schema. No preamble, no markdown fences.
+
+GUIDELINES (cite by id)
+- GUIDE:purine_daily — ${GUIDE.purine_daily_mg.src}. Cannot be computed here.
+- GUIDE:purine_window_days — ${GUIDE.purine_window_days.src}
+- GUIDE:free_sugar — ${GUIDE.free_sugar_g.src}
+- GUIDE:cholesterol — ${GUIDE.cholesterol_mg.src}
+- GUIDE:alcohol — ${GUIDE.alcohol.src}
+- GUIDE:acr2020 — FitzGerald JD et al. 2020 ACR gout guideline: dietary recommendations are conditional, low-to-very-low certainty; diet moves serum urate ~1.0–1.2 mg/dL.
+- GUIDE:choi2004 — Choi HK et al. NEJM 2004: meat and seafood raised incident gout; dairy lowered it; purine-rich vegetables neutral.
+- GUIDE:zhang2012_plant — Zhang Y et al. 2012: animal-source purine OR trend 2.41 vs plant 1.39 across quintiles.
+
+FOOD LIBRARY (id | name | purine mg/100g | GI | sugar | cholesterol | flags)
+${this.libraryText()}`;
+  },
+
+  mealSchema: `{
+ "identified_items": [{"name": string, "library_id": string|null, "confidence": 0-100}],
+ "liquid_class": "none"|"clear"|"concentrated"|"gravy",
+ "purine": {"rating": "vlow"|"low"|"moderate"|"high", "rationale": string, "cites": [string]},
+ "glycaemic": {"band": "low"|"medium"|"high"|"not available", "rationale": string, "cites": [string]},
+ "sugar": {"note": string, "cites": [string]},
+ "lipids": {"note": string, "cites": [string]},
+ "sodium_satfat": string,
+ "questions_to_ask": [string],
+ "what_to_change": [string],
+ "what_is_fine": [string],
+ "not_available": [string],
+ "overall": string
+}`,
+
+  reviewSchema: `{
+ "headline": string,
+ "patterns": [{"pattern": string, "evidence": string, "cites": [string]}],
+ "top_risks": [{"risk": string, "why": string, "action": string, "cites": [string]}],
+ "top_wins": [{"win": string, "why": string, "cites": [string]}],
+ "swaps": [{"from": string, "to": string, "why": string}],
+ "open_questions": [string],
+ "test_recommendation": string,
+ "limits": [string]
+}`,
+
+  async call(userContent, maxTokens){
+    const res = await fetch("https://api.anthropic.com/v1/messages",{
+      method:"POST",
+      headers:{ "content-type":"application/json", "x-api-key":this.key(), "anthropic-version":"2023-06-01", "anthropic-dangerous-direct-browser-access":"true" },
+      body: JSON.stringify({ model:this.model(), max_tokens:maxTokens||1800, system:this.system(), messages:[{role:"user", content:userContent}] })
+    });
+    if(!res.ok){ const t=await res.text(); throw new Error(`API ${res.status}: ${t.slice(0,300)}`); }
+    const data=await res.json();
+    const text=(data.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("\n");
+    const clean=text.replace(/^```json\s*|^```\s*|```\s*$/gm,"").trim();
+    try{ return { json: JSON.parse(clean), raw:text, usage:data.usage }; }
+    catch(e){ return { json:null, raw:text, usage:data.usage, parseError:true }; }
+  },
+
+  async analyseMeal(meal, imageB64, mediaType){
+    const A=analyse(STATE.meals);
+    const context = `LOG CONTEXT: ${A.n} meals so far. Dry-cooked meals without dried seafood rated Low or below ${A.dryNoSeaLow}/${A.dryNoSea}. Liquid meals rated Moderate+ ${A.liquidElevated}/${A.liquid}. Dried seafood in ${A.driedSea} meals. Alcohol ${A.alcohol}, organ meat ${A.organ}. The user checked ingredients ${A.checked} times; every answer lowered the rating.
+
+MEAL TO ANALYSE
+label: ${meal.label||"(none)"}
+slot: ${meal.slot} · date: ${meal.date||"not recorded"}
+items selected by user: ${meal.items.map(id=>FOOD[id]?.name||id).join(", ")||"(none — identify from photo)"}
+liquid consumed (user-declared): ${meal.liquid}
+ingredient checked with cook/stall: ${meal.checked?"yes":"no"}
+user note: ${meal.note||"-"}
+
+Return JSON matching exactly this schema:
+${this.mealSchema}`;
+    const content=[];
+    if(imageB64) content.push({type:"image", source:{type:"base64", media_type:mediaType||"image/jpeg", data:imageB64}});
+    content.push({type:"text", text:context});
+    return this.call(content, 1800);
+  },
+
+  async reviewLog(){
+    const A=analyse(STATE.meals);
+    const meals=[...STATE.meals].sort((a,b)=>a.seq-b.seq).map(m=>`#${m.seq} ${m.date||"undated"} ${m.slot} | ${m.label} | items: ${m.items.join(",")} | liquid: ${m.liquid} | checked: ${m.checked?"y":"n"} | rating: ${m.rating}${m.ai?.purine?.rating?` | ai: ${m.ai.purine.rating}`:""}${m.note?` | note: ${m.note}`:""}`).join("\n");
+    const stats=`STATS: n=${A.n}; ratings ${JSON.stringify(A.byRating)}; dry ${A.dry} (no-dried-seafood ${A.dryNoSea}, of which Low ${A.dryNoSeaLow}); liquid ${A.liquid} (elevated ${A.liquidElevated}); gravy ${A.gravy}; clear ${A.clear}; dried seafood ${A.driedSea}; sweetened ${A.sweet}; high-GI ${A.highGI}; starch ${A.starch}; dairy ${A.dairy}; egg ${A.egg}; plant protein ${A.plant}; alcohol ${A.alcohol}; organ ${A.organ}; checked ${A.checked}.`;
+    const text=`Write a dietitian's review of this meal log. Be specific to what is actually in the log. Do not invent meals or figures.
+
+${stats}
+
+MEAL LOG
+${meals}
+
+Return JSON matching exactly this schema:
+${this.reviewSchema}`;
+    return this.call([{type:"text", text}], 2200);
+  }
+};
+
+// ---------- image helpers ----------
+function fileToResized(file, maxPx, quality){
+  return new Promise((resolve,reject)=>{
+    const img=new Image(); const url=URL.createObjectURL(file);
+    img.onload=()=>{ const s=Math.min(1, maxPx/Math.max(img.width,img.height)); const c=document.createElement("canvas"); c.width=Math.round(img.width*s); c.height=Math.round(img.height*s);
+      c.getContext("2d").drawImage(img,0,0,c.width,c.height); URL.revokeObjectURL(url);
+      const dataUrl=c.toDataURL("image/jpeg",quality); resolve(dataUrl.split(",")[1]); };
+    img.onerror=reject; img.src=url;
+  });
+}
+
+// ---------- UI hooks ----------
+let PENDING_IMG=null; // full-res base64 for the API call; not persisted
+async function onPhoto(inp){
+  const f=inp.files[0]; if(!f) return;
+  PENDING_IMG = await fileToResized(f, 1280, 0.82);
+  ADD.thumb = await fileToResized(f, 420, 0.6);
+  renderModal();
+}
+async function runMealAI(){
+  if(!AI.ready()){ alert("Add your API key under More → AI. It stays on this device."); return; }
+  const btn=$("#aiBtn"); btn.disabled=true; btn.textContent="Analysing…";
+  try{
+    const r=await AI.analyseMeal(ADD, PENDING_IMG, "image/jpeg");
+    if(r.parseError){ ADD.ai={error:"Model returned non-JSON", raw:r.raw}; }
+    else { ADD.ai=r.json; ADD.ai.model=AI.model(); ADD.ai.at=new Date().toISOString(); ADD.ai.usage=r.usage;
+      // adopt identified items the user hasn't already added, when they map to the library
+      (ADD.ai.identified_items||[]).forEach(it=>{ if(it.library_id && FOOD[it.library_id] && !ADD.items.includes(it.library_id) && it.confidence>=60) ADD.items.push(it.library_id); });
+      if(ADD.ai.liquid_class && ADD.liquid==="none" && ADD.ai.liquid_class!=="none") ADD.liquid=ADD.ai.liquid_class;
+      if(!ADD.label && ADD.ai.identified_items?.length) ADD.label=ADD.ai.identified_items.slice(0,3).map(i=>i.name).join(", ");
+    }
+  }catch(e){ ADD.ai={error:String(e.message||e)}; }
+  renderModal();
+}
+async function runLogAI(){
+  if(!AI.ready()){ alert("Add your API key under More → AI."); return; }
+  const box=$("#reviewBox"); box.innerHTML=`<p class="sub">Reviewing ${STATE.meals.length} meals…</p>`;
+  try{ const r=await AI.reviewLog(); if(r.parseError) throw new Error("Model returned non-JSON: "+r.raw.slice(0,200));
+    STATE.review={...r.json, model:AI.model(), at:new Date().toISOString(), usage:r.usage}; save(); box.innerHTML=renderReview(STATE.review);
+  }catch(e){ box.innerHTML=`<p class="alert red">${esc(e.message)}</p>`; }
+}
+function renderAI(ai){
+  if(!ai) return "";
+  if(ai.error) return `<div class="aibox err"><b>AI analysis failed</b><p>${esc(ai.error)}</p>${ai.raw?`<pre>${esc(ai.raw.slice(0,600))}</pre>`:""}</div>`;
+  const li=a=>(a||[]).map(x=>`<li>${esc(x)}</li>`).join("");
+  const cites=c=>(c||[]).length?`<span class="cites">${(c||[]).map(esc).join(" ")}</span>`:"";
+  return `<div class="aibox">
+    <div class="aih"><b>AI dietitian note</b><span class="mono">${esc(ai.model||"")}</span></div>
+    <p class="overall">${esc(ai.overall||"")}</p>
+    ${ai.identified_items?.length?`<div class="aisec"><b>Identified</b> ${ai.identified_items.map(i=>`<span class="tag">${esc(i.name)}${i.library_id?"":" <em>(not in library)</em>"} <span class="mono">${i.confidence}%</span></span>`).join("")}</div>`:""}
+    <div class="aisec"><b>Purine</b> ${chip(ai.purine?.rating,'rating')} <span>${esc(ai.purine?.rationale||"")}</span> ${cites(ai.purine?.cites)}</div>
+    <div class="aisec"><b>Glycaemic</b> ${ai.glycaemic?.band&&ai.glycaemic.band!=="not available"?chip(ai.glycaemic.band==="medium"?"med":ai.glycaemic.band,'gi'):'<span class="na">not available</span>'} <span>${esc(ai.glycaemic?.rationale||"")}</span> ${cites(ai.glycaemic?.cites)}</div>
+    ${ai.sugar?.note?`<div class="aisec"><b>Sugar</b> ${esc(ai.sugar.note)} ${cites(ai.sugar.cites)}</div>`:""}
+    ${ai.lipids?.note?`<div class="aisec"><b>Lipids</b> ${esc(ai.lipids.note)} ${cites(ai.lipids.cites)}</div>`:""}
+    ${ai.sodium_satfat?`<div class="aisec"><b>Sodium / sat fat</b> ${esc(ai.sodium_satfat)}</div>`:""}
+    ${ai.questions_to_ask?.length?`<div class="aisec ask"><b>Ask before assuming</b><ul>${li(ai.questions_to_ask)}</ul></div>`:""}
+    ${ai.what_to_change?.length?`<div class="aisec"><b>Change</b><ul>${li(ai.what_to_change)}</ul></div>`:""}
+    ${ai.what_is_fine?.length?`<div class="aisec"><b>Fine as is</b><ul>${li(ai.what_is_fine)}</ul></div>`:""}
+    ${ai.not_available?.length?`<div class="aisec na"><b>Not available</b><ul>${li(ai.not_available)}</ul></div>`:""}
+    <p class="disc">Generated by a language model constrained to the food library. Not a licensed dietitian. Not a diagnosis.</p>
+  </div>`;
+}
+function renderReview(r){
+  if(!r) return "";
+  const cites=c=>(c||[]).length?`<span class="cites">${(c||[]).map(esc).join(" ")}</span>`:"";
+  return `<div class="aibox">
+    <div class="aih"><b>Dietitian review</b><span class="mono">${esc(r.model||"")} · ${(r.at||"").slice(0,10)}</span></div>
+    <p class="overall">${esc(r.headline||"")}</p>
+    <h3>Patterns</h3>${(r.patterns||[]).map(p=>`<div class="rec"><b>${esc(p.pattern)}</b><p>${esc(p.evidence)}</p>${cites(p.cites)}</div>`).join("")}
+    <h3>Top risks</h3>${(r.top_risks||[]).map(p=>`<div class="rec less"><b>${esc(p.risk)}</b><p>${esc(p.why)}</p><p><b>Do:</b> ${esc(p.action)}</p>${cites(p.cites)}</div>`).join("")}
+    <h3>Top wins</h3>${(r.top_wins||[]).map(p=>`<div class="rec more"><b>${esc(p.win)}</b><p>${esc(p.why)}</p>${cites(p.cites)}</div>`).join("")}
+    ${r.swaps?.length?`<h3>Swaps</h3>${r.swaps.map(s=>`<div class="rec"><b>${esc(s.from)} → ${esc(s.to)}</b><p>${esc(s.why)}</p></div>`).join("")}`:""}
+    ${r.open_questions?.length?`<h3>Open questions</h3><ul class="sub">${r.open_questions.map(q=>`<li>${esc(q)}</li>`).join("")}</ul>`:""}
+    ${r.test_recommendation?`<div class="rec"><b>Test</b><p>${esc(r.test_recommendation)}</p></div>`:""}
+    ${r.limits?.length?`<h3>Limits of this review</h3><ul class="sub">${r.limits.map(q=>`<li>${esc(q)}</li>`).join("")}</ul>`:""}
+    <p class="disc">Generated by a language model constrained to the food library and cited guidelines. Not a licensed dietitian. Not a diagnosis.</p>
+  </div>`;
+}
+function saveAISettings(){ STATE.settings=STATE.settings||{}; STATE.settings.apiKey=$("#apiKey").value.trim(); STATE.settings.model=$("#aiModel").value.trim()||"claude-sonnet-5"; save(); alert("Saved on this device."); }
+function viewAISettings(){
+  const s=STATE.settings||{};
+  return `<h2>AI dietitian</h2>
+  <p class="sub">Bring your own Anthropic API key. It is stored in this browser's localStorage only — never in the repo, never sent anywhere except api.anthropic.com. Anyone with access to this device can read it. Do not paste it into a shared computer.</p>
+  <label class="fld">API key<input id="apiKey" type="password" value="${esc(s.apiKey||"")}" placeholder="sk-ant-…"></label>
+  <label class="fld">Model<input id="aiModel" value="${esc(s.model||"claude-sonnet-5")}"></label>
+  <button class="btn primary" onclick="saveAISettings()">Save</button>
+  <p class="sub">Each meal analysis with a photo costs a few cents. The model is instructed to use only the food library's figures and to answer "not available" otherwise — but it is still a language model, and this app's own history includes errors that structure alone did not prevent. Treat its output as a draft note from a well-briefed assistant, not as clinical advice.</p>`;
+}
+
+</script>
+<script>document.getElementById("ver").textContent=VERSION;</script>
+</body>
+</html>
