@@ -509,7 +509,7 @@ const SEED_MEALS = [
 // MEALTREND — app logic
 // Version stamp convention: vYYYY:MMM:DD-HH:MM (Asia/Singapore)
 // ============================================================
-const VERSION = "v2026:SEP:08-13:50"; // HH:MM approximate — device clock unavailable; set on first edit
+const VERSION = "v2026:SEP:08-14:40"; // HH:MM approximate — device clock unavailable; set on first edit
 
 const LS_KEY = "mealtrend.v1";
 const BANDS = {
@@ -1220,6 +1220,92 @@ async function runLogAI(){
     STATE.review={...r.json, model:AI.model(), at:new Date().toISOString(), usage:r.usage}; save(); box.innerHTML=renderReview(STATE.review);
   }catch(e){ box.innerHTML=`<div class="alert red"><b>The AI could not finish</b><p>${esc(aiErrorHelp(e))}</p>${e.tried&&e.tried.length?`<p class="from">Tried: ${esc(e.tried.join(" → "))}</p>`:""}</div>`; }
 }
+
+// ============================================================
+// DIAGNOSTICS — isolates which layer fails, in order.
+// Each step adds exactly one thing to the previous one.
+// ============================================================
+const DIAG_STEPS = [
+  { id:"net",    name:"1. Internet reachable",
+    what:"Fetches a tiny public file. If this fails, nothing else can work.",
+    run: async ()=>{ const r=await fetch("https://api.anthropic.com/v1/messages",{method:"OPTIONS"});
+                     return `Reached api.anthropic.com (preflight returned ${r.status})`; } },
+  { id:"key",    name:"2. Key and CORS",
+    what:"Smallest possible request: no photo, no tools, no food list.",
+    run: async ()=>{ const d=await AI.raw({model:AI.model(),max_tokens:16,
+                       messages:[{role:"user",content:"Reply with the single word: ok"}]},25000);
+                     return "Model replied: "+((d.content||[]).map(b=>b.text||"").join("").trim()||"(empty)"); } },
+  { id:"system", name:"3. Food list in the prompt",
+    what:"Adds the 8 KB system prompt. Tests whether the bigger body is the problem.",
+    run: async ()=>{ const d=await AI.raw({model:AI.model(),max_tokens:16,system:AI.system(),
+                       messages:[{role:"user",content:"Reply with the single word: ok"}]},40000);
+                     return "Sent "+AI.system().length.toLocaleString()+" characters of prompt. Model replied: "+
+                            ((d.content||[]).map(b=>b.text||"").join("").trim()||"(empty)"); } },
+  { id:"image",  name:"4. Photo upload",
+    what:"Adds a photo. Uses the one attached to this meal, or a tiny test square.",
+    run: async ()=>{ const img = PENDING_IMG || await tinyTestImage();
+                     const kb = Math.round(img.length*0.75/1024);
+                     const d=await AI.raw({model:AI.model(),max_tokens:24,
+                       messages:[{role:"user",content:[
+                         {type:"image",source:{type:"base64",media_type:"image/jpeg",data:img}},
+                         {type:"text",text:"In three words, what is in this image?"}]}]},60000);
+                     return `Sent a ${kb} KB photo. Model replied: `+
+                            ((d.content||[]).map(b=>b.text||"").join("").trim()||"(empty)"); } },
+  { id:"tools",  name:"5. Web search tool",
+    what:"Adds the search tool. This is the slowest part and the first thing dropped on retry.",
+    run: async ()=>{ const d=await AI.raw({model:AI.model(),max_tokens:200,
+                       tools:[{type:"web_search_20250305",name:"web_search",max_uses:1}],
+                       messages:[{role:"user",content:"Search for the calories in one plain roti prata. Answer in one sentence."}]},90000);
+                     const used=(d.content||[]).some(b=>b.type==="server_tool_use");
+                     return (used?"Search ran. ":"Answered without searching. ")+
+                            ((d.content||[]).filter(b=>b.type==="text").map(b=>b.text).join(" ").trim().slice(0,120)); } },
+];
+
+function tinyTestImage(){
+  return new Promise(res=>{
+    const c=document.createElement("canvas"); c.width=c.height=64;
+    const x=c.getContext("2d"); x.fillStyle="#3E7A4E"; x.fillRect(0,0,64,64);
+    x.fillStyle="#C8402F"; x.beginPath(); x.arc(32,32,18,0,7); x.fill();
+    res(c.toDataURL("image/jpeg",0.6).split(",")[1]);
+  });
+}
+
+async function runDiagnostics(){
+  const box=$("#diagOut");
+  if(!AI.ready()){ box.innerHTML=`<div class="alert amber"><p>Enter your API key above and press Save first.</p></div>`; return; }
+  const results=[];
+  const paint=()=>{ box.innerHTML = results.map(r=>`
+    <div class="alert ${r.state==='pass'?'':(r.state==='fail'?'red':'amber')}" style="${r.state==='pass'?'background:var(--pandan-bg);border-color:var(--pandan)':''}">
+      <b>${r.state==="pass"?"Passed":r.state==="fail"?"Failed":"Running…"} — ${esc(r.name)}</b>
+      <p class="from">${esc(r.what)}</p>
+      ${r.msg?`<p>${esc(r.msg)}</p>`:""}
+    </div>`).join("") + (results.some(r=>r.state==="fail")
+      ? `<div class="alert amber"><b>What this means</b><p>${esc(diagVerdict(results))}</p></div>` : "");
+  };
+  for(const step of DIAG_STEPS){
+    const row={name:step.name, what:step.what, state:"run", msg:""};
+    results.push(row); paint();
+    try{ row.msg = await step.run(); row.state="pass"; }
+    catch(e){ row.msg = aiErrorHelp(e) + (e.message&&e.kind!=="network"?` (${e.message.slice(0,160)})`:""); row.state="fail"; paint(); break; }
+    paint();
+  }
+  if(!results.some(r=>r.state==="fail")){
+    box.innerHTML += `<div class="allclear">Everything passed. Photo analysis should work. If it still fails, tell Claude which step number was slowest.</div>`;
+  }
+}
+
+function diagVerdict(results){
+  const failed = results.find(r=>r.state==="fail");
+  if(!failed) return "";
+  const n = results.length;
+  if(n===1) return "The app cannot reach Anthropic at all. This is your network, not the app. A VPN, a content blocker, corporate Wi-Fi, or iOS Lockdown Mode will all do this. Try mobile data if you are on Wi-Fi, or the other way round.";
+  if(n===2) return "The network is fine but the request was refused. Check the API key in Settings, and check the key has credit on console.anthropic.com.";
+  if(n===3) return "Small requests work but the 8 KB food list does not. That points at a proxy or gateway limiting request size. Try a different network.";
+  if(n===4) return "Everything works until the photo. The photo is too large for this connection. Use Wi-Fi, or take the picture from further back so the file is smaller.";
+  if(n===5) return "Everything works except web search. Tick 'Skip looking things up online' in Settings and photo analysis will work.";
+  return "";
+}
+
 function aiErrorHelp(e){
   const k=e.kind||"";
   if(k==="key")     return "Your API key was rejected. Check it in Settings — it should start with sk-ant-.";
@@ -1234,7 +1320,8 @@ function renderAI(ai){
   if(!ai) return "";
   if(ai.error) return `<div class="ai failed"><b>The AI could not finish</b><p>${esc(ai.error)}</p>
     ${ai.tried&&ai.tried.length?`<p class="disc">Tried: ${esc(ai.tried.join(" → "))}</p>`:""}
-    ${ai.raw?`<pre>${esc(String(ai.raw).slice(0,600))}</pre>`:""}</div>`;
+    ${ai.raw?`<pre>${esc(String(ai.raw).slice(0,600))}</pre>`:""}
+    <p class="disc">Go to Settings and press <b>Find out what is broken</b>. It runs five checks and tells you exactly which part is failing.</p></div>`;
   const li=a=>(a||[]).map(x=>`<li>${esc(x)}</li>`).join("");
   const cites=c=>(c||[]).length?`<span class="cites">${(c||[]).map(esc).join(" ")}</span>`:"";
   return `<div class="ai">
@@ -1299,8 +1386,9 @@ function viewAISettings(){
   <label>Which AI model<input id="aiModel" value="${esc(s.model||"claude-sonnet-5")}"></label>
   <label class="checkline"><input type="checkbox" id="noSearch" ${s.noSearch?"checked":""}> Skip looking things up online (faster, works better on mobile data)</label>
   <button class="btn primary" onclick="saveAISettings()">Save</button>
-  <button class="btn" onclick="testAI()">Test the connection</button>
-  <div id="aiTest"></div>
+  <button class="btn" onclick="runDiagnostics()">Find out what is broken</button>
+  <p class="sub">Runs five checks, each adding one thing to the last. It stops at the first failure and tells you what that means.</p>
+  <div id="diagOut"></div>
   <p class="sub">Each photo you analyse costs a few cents. The AI is told to use only the numbers in this app, to look things up online when a food is missing, and to say "no data" rather than guess. It still gets things wrong sometimes. Treat what it writes as a helpful first draft you check, not as medical advice.</p>`;
 }
 
