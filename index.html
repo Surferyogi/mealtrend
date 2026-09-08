@@ -509,7 +509,7 @@ const SEED_MEALS = [
 // MEALTREND — app logic
 // Version stamp convention: vYYYY:MMM:DD-HH:MM (Asia/Singapore)
 // ============================================================
-const VERSION = "v2026:SEP:08-05:20"; // HH:MM approximate — device clock unavailable; set on first edit
+const VERSION = "v2026:SEP:08-13:50"; // HH:MM approximate — device clock unavailable; set on first edit
 
 const LS_KEY = "mealtrend.v1";
 const BANDS = {
@@ -1036,33 +1036,93 @@ ${this.libraryText()}`;
     return null; // unbalanced — response was cut off
   },
 
-  async call(userContent, maxTokens, _retry){
-    const res = await fetch("https://api.anthropic.com/v1/messages",{
-      method:"POST",
-      headers:{ "content-type":"application/json", "x-api-key":this.key(), "anthropic-version":"2023-06-01", "anthropic-dangerous-direct-browser-access":"true" },
-      body: JSON.stringify({
-        model:this.model(), max_tokens:maxTokens||4000, system:this.system(),
-        messages:[{role:"user", content:userContent}],
-        tools: (STATE.settings||{}).noSearch ? undefined : [{ type:"web_search_20250305", name:"web_search", max_uses:5 }]
-      })
-    });
-    if(!res.ok){ const t=await res.text(); throw new Error(`API ${res.status}: ${t.slice(0,300)}`); }
-    const data=await res.json();
-    // With web_search enabled the response contains server_tool_use and web_search_tool_result
-    // blocks interleaved with text. Take text blocks only, in order.
+  async raw(body, timeoutMs){
+    const ctl=new AbortController();
+    const t=setTimeout(()=>ctl.abort(), timeoutMs||90000);
+    try{
+      const res = await fetch("https://api.anthropic.com/v1/messages",{
+        method:"POST", signal:ctl.signal,
+        headers:{ "content-type":"application/json", "x-api-key":this.key(),
+                  "anthropic-version":"2023-06-01", "anthropic-dangerous-direct-browser-access":"true" },
+        body: JSON.stringify(body)
+      });
+      if(!res.ok){
+        const t=await res.text();
+        const e=new Error(`API said ${res.status}. ${t.slice(0,240)}`);
+        e.kind = res.status===401 ? "key" : res.status===429 ? "rate" : res.status>=500 ? "server" : "api";
+        throw e;
+      }
+      return await res.json();
+    }catch(e){
+      if(e.name==="AbortError"){ const x=new Error("The request took too long and was cancelled."); x.kind="timeout"; throw x; }
+      if(e.kind) throw e;
+      // fetch throws a bare TypeError on network failure. Safari calls it "Load failed".
+      const x=new Error("Could not reach the internet, or the request was too big to send."); x.kind="network"; throw x;
+    }finally{ clearTimeout(t); }
+  },
+
+  extractJSON(text){
+    const i=text.indexOf("{"); if(i<0) return null;
+    let d=0, inStr=false, esc=false;
+    for(let j=i;j<text.length;j++){
+      const c=text[j];
+      if(inStr){ if(esc) esc=false; else if(c==="\\") esc=true; else if(c==='"') inStr=false; continue; }
+      if(c==='"'){ inStr=true; continue; }
+      if(c==="{") d++;
+      else if(c==="}"){ d--; if(d===0){ try{ return JSON.parse(text.slice(i,j+1)); }catch(e){ return null; } } }
+    }
+    return null;
+  },
+
+  parse(data){
     const blocks=data.content||[];
     const text=blocks.filter(b=>b.type==="text").map(b=>b.text).join("\n");
-    const searches=blocks.filter(b=>b.type==="server_tool_use"&&b.name==="web_search").map(b=>b.input?.query).filter(Boolean);
-    const truncated = data.stop_reason==="max_tokens";
-    const json=this.extractJSON(text);
-    if(json) return { json, raw:text, usage:data.usage, truncated:false, searches };
-    if(truncated && !_retry){
-      // Retry once, asking for terse output. Truncation is the usual cause of a parse failure.
-      const terse=[...userContent];
-      terse.push({type:"text", text:"IMPORTANT: your previous reply was cut off before the JSON closed. Reply again with the SAME schema but keep every string under 25 words and every array to at most 3 entries. Output the JSON object only — no fences, no commentary."});
-      return this.call(terse, (maxTokens||4000)+2000, true);
+    const searches=blocks.filter(b=>b.type==="server_tool_use"&&b.name==="web_search").map(b=>b.input&&b.input.query).filter(Boolean);
+    return { text, searches, truncated: data.stop_reason==="max_tokens", usage:data.usage };
+  },
+
+  // Attempts get progressively smaller and simpler. Each step drops the thing most likely to
+  // have broken the previous one: first web search (slow), then the photo (large).
+  async call(userContent, maxTokens, opts){
+    opts = opts || {};
+    const useSearch = !(STATE.settings||{}).noSearch;
+    const plan = [
+      { label:"full",        search:useSearch, keepImage:true,  tokens:maxTokens||4000, timeout:120000 },
+      { label:"no search",   search:false,     keepImage:true,  tokens:maxTokens||4000, timeout:75000  },
+      { label:"text only",   search:false,     keepImage:false, tokens:2500,            timeout:45000  },
+    ];
+    let lastErr=null; const tried=[];
+    for(const step of plan){
+      if(opts.noFallback && step.label!=="full") break;
+      const content = step.keepImage ? userContent : userContent.filter(b=>b.type!=="image");
+      if(!step.keepImage && content.length===userContent.length && step.label==="text only" && tried.length){ /* no image anyway */ }
+      const body = { model:this.model(), max_tokens:step.tokens, system:this.system(),
+                     messages:[{role:"user", content}] };
+      if(step.search) body.tools=[{ type:"web_search_20250305", name:"web_search", max_uses:3 }];
+      try{
+        const data = await this.raw(body, step.timeout);
+        const r = this.parse(data);
+        let json = this.extractJSON(r.text);
+        if(!json && r.truncated){
+          // cut off mid-object: ask again, tersely
+          const terse=[...content, {type:"text", text:"Your last reply was cut off before the JSON closed. Reply again with the same schema, every string under 20 words, arrays of at most 3. JSON object only."}];
+          const d2 = await this.raw({...body, max_tokens: step.tokens+2000, messages:[{role:"user", content:terse}]}, step.timeout);
+          const r2 = this.parse(d2);
+          json = this.extractJSON(r2.text);
+          if(json) return { json, raw:r2.text, usage:r2.usage, searches:r2.searches, degraded: step.label!=="full" ? step.label : null, tried };
+        }
+        if(json) return { json, raw:r.text, usage:r.usage, searches:r.searches, degraded: step.label!=="full" ? step.label : null, tried };
+        lastErr = Object.assign(new Error("The AI replied in the wrong format."), {kind:"format", raw:r.text});
+      }catch(e){
+        lastErr = e;
+        tried.push(`${step.label}: ${e.kind||"error"}`);
+        // A bad key or a rate limit will not be fixed by trying smaller. Stop.
+        if(e.kind==="key" || e.kind==="rate") break;
+        continue;
+      }
+      tried.push(`${step.label}: wrong format`);
     }
-    return { json:null, raw:text, usage:data.usage, truncated, parseError:true, searches };
+    throw Object.assign(lastErr||new Error("Unknown problem"), { tried });
   },
 
   async analyseMeal(meal, imageB64, mediaType){
@@ -1127,8 +1187,8 @@ async function onPhoto(inp){
   const f=inp.files[0]; if(!f) return;
   const st=$("#photoStatus"); if(st) st.textContent="Reading the photo…";
   try{
-    PENDING_IMG = await fileToResized(f, 1280, 0.82);
-    ADD.thumb   = await fileToResized(f, 420, 0.6);
+    PENDING_IMG = await fileToResized(f, 900, 0.7);
+    ADD.thumb   = await fileToResized(f, 360, 0.55);
     ADD.photoError=null;
   }catch(e){
     PENDING_IMG=null; ADD.thumb=null; ADD.photoError=String(e.message||e);
@@ -1142,13 +1202,15 @@ async function runMealAI(){
   try{
     const r=await AI.analyseMeal(ADD, PENDING_IMG, "image/jpeg");
     if(r.parseError){ ADD.ai={error: r.truncated ? "The AI ran out of room to finish its answer, twice. Try again, or pick fewer foods." : "The AI replied in the wrong format. Try again.", raw:r.raw}; }
-    else { ADD.ai=r.json; ADD.ai.model=AI.model(); ADD.ai.at=new Date().toISOString(); ADD.ai.usage=r.usage; ADD.ai.searches=r.searches;
+    else { ADD.ai=r.json; ADD.ai.degraded=r.degraded; ADD.ai.model=AI.model(); ADD.ai.at=new Date().toISOString(); ADD.ai.usage=r.usage; ADD.ai.searches=r.searches;
       // adopt identified items the user hasn't already added, when they map to the library
       (ADD.ai.identified_items||[]).forEach(it=>{ if(it.library_id && FOOD[it.library_id] && !ADD.items.includes(it.library_id) && it.confidence>=60) ADD.items.push(it.library_id); });
       if(ADD.ai.liquid_class && ADD.liquid==="none" && ADD.ai.liquid_class!=="none") ADD.liquid=ADD.ai.liquid_class;
       if(!ADD.label && ADD.ai.identified_items?.length) ADD.label=ADD.ai.identified_items.slice(0,3).map(i=>i.name).join(", ");
     }
-  }catch(e){ ADD.ai={error:String(e.message||e)}; }
+  }catch(e){
+    ADD.ai={ error: aiErrorHelp(e), raw:e.raw, tried:e.tried };
+  }
   renderModal();
 }
 async function runLogAI(){
@@ -1156,15 +1218,28 @@ async function runLogAI(){
   const box=$("#reviewBox"); box.innerHTML=`<p class="sub">Reading all ${STATE.meals.length} meals…</p>`;
   try{ const r=await AI.reviewLog(); if(r.parseError) throw new Error("Model returned non-JSON: "+r.raw.slice(0,200));
     STATE.review={...r.json, model:AI.model(), at:new Date().toISOString(), usage:r.usage}; save(); box.innerHTML=renderReview(STATE.review);
-  }catch(e){ box.innerHTML=`<p class="alert red">${esc(e.message)}</p>`; }
+  }catch(e){ box.innerHTML=`<div class="alert red"><b>The AI could not finish</b><p>${esc(aiErrorHelp(e))}</p>${e.tried&&e.tried.length?`<p class="from">Tried: ${esc(e.tried.join(" → "))}</p>`:""}</div>`; }
+}
+function aiErrorHelp(e){
+  const k=e.kind||"";
+  if(k==="key")     return "Your API key was rejected. Check it in Settings — it should start with sk-ant-.";
+  if(k==="rate")    return "Anthropic is rate-limiting your key. Wait a minute and try again.";
+  if(k==="server")  return "Anthropic's server had a problem. Try again in a moment.";
+  if(k==="timeout") return "The request took too long. On a mobile connection this usually means the photo was too big or the network dropped. Try on Wi-Fi, or turn off web search in Settings to make it faster.";
+  if(k==="network") return "Could not reach Anthropic. Three things to check: are you online, is your key set in Settings, and is a VPN or content blocker in the way? Trying on Wi-Fi often fixes it.";
+  if(k==="format")  return "The AI replied in a format the app could not read. Try again.";
+  return String(e.message||e);
 }
 function renderAI(ai){
   if(!ai) return "";
-  if(ai.error) return `<div class="ai failed"><b>The AI could not finish</b><p>${esc(ai.error)}</p>${ai.raw?`<pre>${esc(ai.raw.slice(0,600))}</pre>`:""}</div>`;
+  if(ai.error) return `<div class="ai failed"><b>The AI could not finish</b><p>${esc(ai.error)}</p>
+    ${ai.tried&&ai.tried.length?`<p class="disc">Tried: ${esc(ai.tried.join(" → "))}</p>`:""}
+    ${ai.raw?`<pre>${esc(String(ai.raw).slice(0,600))}</pre>`:""}</div>`;
   const li=a=>(a||[]).map(x=>`<li>${esc(x)}</li>`).join("");
   const cites=c=>(c||[]).length?`<span class="cites">${(c||[]).map(esc).join(" ")}</span>`:"";
   return `<div class="ai">
-    <div class="who"><b>AI dietitian note</b><span class="mono">${esc(ai.model||"")}</span></div>
+    <div class="who"><b>AI dietitian note</b><span>${esc(ai.model||"")}${ai.degraded?` · ${esc(ai.degraded)}`:""}</span></div>
+    ${ai.degraded?`<p class="disc">The first attempt did not go through, so this ran ${ai.degraded==="no search"?"without looking anything up online":"without the photo"}. Try again on Wi-Fi for a fuller answer.</p>`:""}
     <p class="summary">${esc(ai.overall||"")}</p>
     ${ai.identified_items?.length?`<div class="part"><b>Identified</b> ${ai.identified_items.map(i=>`<span class="tag">${esc(i.name)}${i.library_id?"":" <em>(not in library)</em>"} <span class="mono">${i.confidence}%</span></span>`).join("")}</div>`:""}
     ${ai.headline_axis?`<div class="part main"><b>The main thing here</b> <span class="status s-moderate">${esc(ai.headline_axis)}</span> ${esc(ai.headline_why||"")}</div>`:""}
@@ -1198,14 +1273,34 @@ function renderReview(r){
     <p class="disc">Written by an AI using the food list and health guidelines in this app. It is not a real dietitian and it cannot diagnose you.</p>
   </div>`;
 }
-function saveAISettings(){ STATE.settings=STATE.settings||{}; STATE.settings.apiKey=$("#apiKey").value.trim(); STATE.settings.model=$("#aiModel").value.trim()||"claude-sonnet-5"; save(); alert("Saved on this phone."); }
+function saveAISettings(){ STATE.settings=STATE.settings||{};
+  STATE.settings.apiKey=$("#apiKey").value.trim();
+  STATE.settings.model=$("#aiModel").value.trim()||"claude-sonnet-5";
+  STATE.settings.noSearch=$("#noSearch").checked;
+  save(); alert("Saved on this phone."); }
+
+// Tiny request with no image, no tools, no library. Isolates key and network from payload size.
+async function testAI(){
+  const box=$("#aiTest"); if(!AI.ready()){ box.innerHTML=`<div class="alert amber"><p>Enter your API key first, then Save.</p></div>`; return; }
+  box.innerHTML=`<p class="sub">Testing…</p>`;
+  try{
+    const d=await AI.raw({ model:AI.model(), max_tokens:16, messages:[{role:"user",content:"Reply with the single word: ok"}] }, 20000);
+    const t=(d.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("").trim();
+    box.innerHTML=`<div class="allclear">Connection works. The AI replied "${esc(t)}". If a photo analysis still fails, the photo is too big for your connection — use Wi-Fi, or tick the box above to skip web search.</div>`;
+  }catch(e){
+    box.innerHTML=`<div class="alert red"><b>Test failed</b><p>${esc(aiErrorHelp(e))}</p></div>`;
+  }
+}
 function viewAISettings(){
   const s=STATE.settings||{};
   return `<h2>AI dietitian</h2>
   <p class="sub">You need your own Anthropic API key for the photo analysis and the meal review. The key is saved in this browser only. It is never uploaded anywhere except to Anthropic when you ask a question. Anyone who picks up this phone and opens the browser tools can read it, so do not do this on a shared computer.</p>
   <label>API key<input id="apiKey" type="password" value="${esc(s.apiKey||"")}" placeholder="sk-ant-…"></label>
   <label>Which AI model<input id="aiModel" value="${esc(s.model||"claude-sonnet-5")}"></label>
+  <label class="checkline"><input type="checkbox" id="noSearch" ${s.noSearch?"checked":""}> Skip looking things up online (faster, works better on mobile data)</label>
   <button class="btn primary" onclick="saveAISettings()">Save</button>
+  <button class="btn" onclick="testAI()">Test the connection</button>
+  <div id="aiTest"></div>
   <p class="sub">Each photo you analyse costs a few cents. The AI is told to use only the numbers in this app, to look things up online when a food is missing, and to say "no data" rather than guess. It still gets things wrong sometimes. Treat what it writes as a helpful first draft you check, not as medical advice.</p>`;
 }
 
