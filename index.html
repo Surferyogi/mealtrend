@@ -509,7 +509,7 @@ const SEED_MEALS = [
 // MEALTREND — app logic
 // Version stamp convention: vYYYY:MMM:DD-HH:MM (Asia/Singapore)
 // ============================================================
-const VERSION = "v2026:SEP:08-14:40"; // HH:MM approximate — device clock unavailable; set on first edit
+const VERSION = "v2026:SEP:09-06:20"; // HH:MM approximate — device clock unavailable; set on first edit
 
 const LS_KEY = "mealtrend.v1";
 const BANDS = {
@@ -873,6 +873,7 @@ function renderModal(){
     ${ADD.photoError?`<div class="alert red"><b>Cannot read that photo</b><p>${esc(ADD.photoError)}</p></div>`:""}
     ${ADD.thumb?`<img class="thumb" src="data:image/jpeg;base64,${ADD.thumb}" alt="">`:""}
     <button id="aiBtn" class="btn primary" onclick="runMealAI()" ${AI.ready()?"":"disabled title='Add API key under More → AI'"}>${ADD.ai?"Ask again":"Ask the AI dietitian"}${PENDING_IMG?" about this photo":""}</button>
+    <button id="aiCancel" class="btn warn" style="display:none" onclick="stopAI()">Stop</button>
     ${renderAI(ADD.ai)}
     <label>Add the foods<input class="search" placeholder="Start typing a food" oninput="pickList(this.value)"></label>
     <div id="pick"></div>
@@ -1036,8 +1037,8 @@ ${this.libraryText()}`;
     return null; // unbalanced — response was cut off
   },
 
-  async raw(body, timeoutMs){
-    const ctl=new AbortController();
+  async raw(body, timeoutMs, ctlIn){
+    const ctl=ctlIn||new AbortController();
     const t=setTimeout(()=>ctl.abort(), timeoutMs||90000);
     try{
       const res = await fetch("https://api.anthropic.com/v1/messages",{
@@ -1085,28 +1086,33 @@ ${this.libraryText()}`;
   // have broken the previous one: first web search (slow), then the photo (large).
   async call(userContent, maxTokens, opts){
     opts = opts || {};
-    const useSearch = !(STATE.settings||{}).noSearch;
+    const on = opts.onProgress || (()=>{});
+    const useSearch = !!(STATE.settings||{}).useSearch;
     const plan = [
-      { label:"full",        search:useSearch, keepImage:true,  tokens:maxTokens||4000, timeout:120000 },
-      { label:"no search",   search:false,     keepImage:true,  tokens:maxTokens||4000, timeout:75000  },
-      { label:"text only",   search:false,     keepImage:false, tokens:2500,            timeout:45000  },
+      { label:"full",        search:useSearch, keepImage:true,  tokens:maxTokens||3000, timeout:45000 },
+      { label:"no search",   search:false,     keepImage:true,  tokens:maxTokens||3000, timeout:30000 },
+      { label:"text only",   search:false,     keepImage:false, tokens:2000,            timeout:20000 },
     ];
     let lastErr=null; const tried=[];
     for(const step of plan){
       if(opts.noFallback && step.label!=="full") break;
+      if(opts.ctl && opts.ctl.signal.aborted){
+        throw Object.assign(new Error("Cancelled."), {kind:"cancelled", tried});
+      }
       const content = step.keepImage ? userContent : userContent.filter(b=>b.type!=="image");
       if(!step.keepImage && content.length===userContent.length && step.label==="text only" && tried.length){ /* no image anyway */ }
       const body = { model:this.model(), max_tokens:step.tokens, system:this.system(),
                      messages:[{role:"user", content}] };
       if(step.search) body.tools=[{ type:"web_search_20250305", name:"web_search", max_uses:3 }];
+      on(step.label, step.timeout);
       try{
-        const data = await this.raw(body, step.timeout);
+        const data = await this.raw(body, step.timeout, opts.ctl);
         const r = this.parse(data);
         let json = this.extractJSON(r.text);
         if(!json && r.truncated){
           // cut off mid-object: ask again, tersely
           const terse=[...content, {type:"text", text:"Your last reply was cut off before the JSON closed. Reply again with the same schema, every string under 20 words, arrays of at most 3. JSON object only."}];
-          const d2 = await this.raw({...body, max_tokens: step.tokens+2000, messages:[{role:"user", content:terse}]}, step.timeout);
+          const d2 = await this.raw({...body, max_tokens: step.tokens+1500, messages:[{role:"user", content:terse}]}, step.timeout, opts.ctl);
           const r2 = this.parse(d2);
           json = this.extractJSON(r2.text);
           if(json) return { json, raw:r2.text, usage:r2.usage, searches:r2.searches, degraded: step.label!=="full" ? step.label : null, tried };
@@ -1118,6 +1124,7 @@ ${this.libraryText()}`;
         tried.push(`${step.label}: ${e.kind||"error"}`);
         // A bad key or a rate limit will not be fixed by trying smaller. Stop.
         if(e.kind==="key" || e.kind==="rate") break;
+        if(opts.ctl && opts.ctl.signal.aborted){ e.kind="cancelled"; break; }
         continue;
       }
       tried.push(`${step.label}: wrong format`);
@@ -1125,7 +1132,7 @@ ${this.libraryText()}`;
     throw Object.assign(lastErr||new Error("Unknown problem"), { tried });
   },
 
-  async analyseMeal(meal, imageB64, mediaType){
+  async analyseMeal(meal, imageB64, mediaType, opts){
     const A=analyse(STATE.meals);
     const context = `LOG CONTEXT: ${A.n} meals so far. Dry-cooked meals without dried seafood rated Low or below ${A.dryNoSeaLow}/${A.dryNoSea}. Liquid meals rated Moderate+ ${A.liquidElevated}/${A.liquid}. Dried seafood in ${A.driedSea} meals. Alcohol ${A.alcohol}, organ meat ${A.organ}. The user checked ingredients ${A.checked} times; every answer lowered the rating.
 
@@ -1141,10 +1148,10 @@ If any identified food is NOT in the library, use web_search to find its publish
     const content=[];
     if(imageB64) content.push({type:"image", source:{type:"base64", media_type:mediaType||"image/jpeg", data:imageB64}});
     content.push({type:"text", text:context});
-    return this.call(content, 4000);
+    return this.call(content, 3000, opts);
   },
 
-  async reviewLog(){
+  async reviewLog(opts){
     const A=analyse(STATE.meals);
     const meals=[...STATE.meals].sort((a,b)=>a.seq-b.seq).map(m=>`#${m.seq} ${m.date||"undated"} ${m.slot} | ${m.label} | items: ${m.items.join(",")} | liquid: ${m.liquid} | checked: ${m.checked?"y":"n"} | rating: ${m.rating}${m.ai?.purine?.rating?` | ai: ${m.ai.purine.rating}`:""}${m.note?` | note: ${m.note}`:""}`).join("\n");
     const stats=`STATS: n=${A.n}; ratings ${JSON.stringify(A.byRating)}; dry ${A.dry} (no-dried-seafood ${A.dryNoSea}, of which Low ${A.dryNoSeaLow}); liquid ${A.liquid} (elevated ${A.liquidElevated}); gravy ${A.gravy}; clear ${A.clear}; dried seafood ${A.driedSea}; sweetened ${A.sweet}; high-GI ${A.highGI}; starch ${A.starch}; dairy ${A.dairy}; egg ${A.egg}; plant protein ${A.plant}; alcohol ${A.alcohol}; organ ${A.organ}; checked ${A.checked}.`;
@@ -1156,7 +1163,7 @@ MEAL LOG
 ${meals}
 
 Return the JSON object only — no markdown fences, no text before or after.\nKeep every string under 40 words and every array to at most 5 entries.\nSchema:\n${this.reviewSchema}`;
-    return this.call([{type:"text", text}], 5000);
+    return this.call([{type:"text", text}], 4000, opts);
   }
 };
 
@@ -1187,7 +1194,8 @@ async function onPhoto(inp){
   const f=inp.files[0]; if(!f) return;
   const st=$("#photoStatus"); if(st) st.textContent="Reading the photo…";
   try{
-    PENDING_IMG = await fileToResized(f, 900, 0.7);
+    const q=(STATE.settings||{}).hiRes ? [1100,0.75] : [640,0.6];
+    PENDING_IMG = await fileToResized(f, q[0], q[1]);
     ADD.thumb   = await fileToResized(f, 360, 0.55);
     ADD.photoError=null;
   }catch(e){
@@ -1195,21 +1203,42 @@ async function onPhoto(inp){
   }
   renderModal();
 }
+let AI_TIMER=null, AI_CTL=null;
+function aiBusy(label, secs){
+  const btn=$("#aiBtn"); if(!btn) return;
+  const leg = label==="full" ? "reading the photo" : label==="no search" ? "trying again, no web search" : "trying without the photo";
+  btn.textContent = `Thinking… ${secs}s · ${leg}`;
+}
+function stopAI(){
+  if(AI_CTL) AI_CTL.abort();
+  if(AI_TIMER) clearInterval(AI_TIMER);
+  AI_TIMER=null;
+}
 async function runMealAI(){
   if(!AI.ready()){ alert("Add your API key in Settings first. It stays on this phone."); return; }
   if(!PENDING_IMG && !ADD.items.length && !ADD.label.trim()){ alert("Add a photo, pick some foods, or type what you ate first."); return; }
-  const btn=$("#aiBtn"); btn.disabled=true; btn.textContent="Thinking…";
+  const btn=$("#aiBtn"); btn.disabled=true;
+  const cancel=$("#aiCancel"); if(cancel) cancel.style.display="inline-block";
+  AI_CTL=new AbortController();
+  let secs=0, leg="full";
+  aiBusy(leg,0);
+  AI_TIMER=setInterval(()=>{ secs++; aiBusy(leg,secs); }, 1000);
   try{
-    const r=await AI.analyseMeal(ADD, PENDING_IMG, "image/jpeg");
-    if(r.parseError){ ADD.ai={error: r.truncated ? "The AI ran out of room to finish its answer, twice. Try again, or pick fewer foods." : "The AI replied in the wrong format. Try again.", raw:r.raw}; }
+    const r=await AI.analyseMeal(ADD, PENDING_IMG, "image/jpeg",
+      { ctl:AI_CTL, onProgress:(l)=>{ leg=l; aiBusy(l,secs); } });
+    if(r.parseError){ ADD.ai={ error: r.truncated ? "The AI ran out of room to finish its answer, twice. Try again, or pick fewer foods." : "The AI replied in the wrong format. Try again." , raw:r.raw}; }
     else { ADD.ai=r.json; ADD.ai.degraded=r.degraded; ADD.ai.model=AI.model(); ADD.ai.at=new Date().toISOString(); ADD.ai.usage=r.usage; ADD.ai.searches=r.searches;
-      // adopt identified items the user hasn't already added, when they map to the library
       (ADD.ai.identified_items||[]).forEach(it=>{ if(it.library_id && FOOD[it.library_id] && !ADD.items.includes(it.library_id) && it.confidence>=60) ADD.items.push(it.library_id); });
       if(ADD.ai.liquid_class && ADD.liquid==="none" && ADD.ai.liquid_class!=="none") ADD.liquid=ADD.ai.liquid_class;
       if(!ADD.label && ADD.ai.identified_items?.length) ADD.label=ADD.ai.identified_items.slice(0,3).map(i=>i.name).join(", ");
     }
   }catch(e){
-    ADD.ai={ error: aiErrorHelp(e), raw:e.raw, tried:e.tried };
+    ADD.ai = (e.kind==="cancelled" || e.name==="AbortError")
+      ? { error:"You stopped it." }
+      : { error: aiErrorHelp(e), raw:e.raw, tried:e.tried };
+  }finally{
+    if(AI_TIMER){ clearInterval(AI_TIMER); AI_TIMER=null; }
+    AI_CTL=null;
   }
   renderModal();
 }
@@ -1302,7 +1331,7 @@ function diagVerdict(results){
   if(n===2) return "The network is fine but the request was refused. Check the API key in Settings, and check the key has credit on console.anthropic.com.";
   if(n===3) return "Small requests work but the 8 KB food list does not. That points at a proxy or gateway limiting request size. Try a different network.";
   if(n===4) return "Everything works until the photo. The photo is too large for this connection. Use Wi-Fi, or take the picture from further back so the file is smaller.";
-  if(n===5) return "Everything works except web search. Tick 'Skip looking things up online' in Settings and photo analysis will work.";
+  if(n===5) return "Everything works except web search. Leave 'Let the AI look things up online' switched off in Settings and photo analysis will work.";
   return "";
 }
 
@@ -1313,6 +1342,7 @@ function aiErrorHelp(e){
   if(k==="server")  return "Anthropic's server had a problem. Try again in a moment.";
   if(k==="timeout") return "The request took too long. On a mobile connection this usually means the photo was too big or the network dropped. Try on Wi-Fi, or turn off web search in Settings to make it faster.";
   if(k==="network") return "Could not reach Anthropic. Three things to check: are you online, is your key set in Settings, and is a VPN or content blocker in the way? Trying on Wi-Fi often fixes it.";
+  if(k==="cancelled") return "You stopped it.";
   if(k==="format")  return "The AI replied in a format the app could not read. Try again.";
   return String(e.message||e);
 }
@@ -1363,7 +1393,8 @@ function renderReview(r){
 function saveAISettings(){ STATE.settings=STATE.settings||{};
   STATE.settings.apiKey=$("#apiKey").value.trim();
   STATE.settings.model=$("#aiModel").value.trim()||"claude-sonnet-5";
-  STATE.settings.noSearch=$("#noSearch").checked;
+  STATE.settings.useSearch=$("#useSearch").checked;
+  STATE.settings.hiRes=$("#hiRes").checked;
   save(); alert("Saved on this phone."); }
 
 // Tiny request with no image, no tools, no library. Isolates key and network from payload size.
@@ -1384,7 +1415,8 @@ function viewAISettings(){
   <p class="sub">You need your own Anthropic API key for the photo analysis and the meal review. The key is saved in this browser only. It is never uploaded anywhere except to Anthropic when you ask a question. Anyone who picks up this phone and opens the browser tools can read it, so do not do this on a shared computer.</p>
   <label>API key<input id="apiKey" type="password" value="${esc(s.apiKey||"")}" placeholder="sk-ant-…"></label>
   <label>Which AI model<input id="aiModel" value="${esc(s.model||"claude-sonnet-5")}"></label>
-  <label class="checkline"><input type="checkbox" id="noSearch" ${s.noSearch?"checked":""}> Skip looking things up online (faster, works better on mobile data)</label>
+  <label class="checkline"><input type="checkbox" id="useSearch" ${s.useSearch?"checked":""}> Let the AI look things up online. <b>Slower.</b> Leave this off on mobile data.</label>
+  <label class="checkline"><input type="checkbox" id="hiRes" ${s.hiRes?"checked":""}> Send bigger photos. Better detail, but often fails on mobile data.</label>
   <button class="btn primary" onclick="saveAISettings()">Save</button>
   <button class="btn" onclick="runDiagnostics()">Find out what is broken</button>
   <p class="sub">Runs five checks, each adding one thing to the last. It stops at the first failure and tells you what that means.</p>
