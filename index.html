@@ -509,7 +509,7 @@ const SEED_MEALS = [
 // MEALTREND — app logic
 // Version stamp convention: vYYYY:MMM:DD-HH:MM (Asia/Singapore)
 // ============================================================
-const VERSION = "v2026:SEP:09-06:20"; // HH:MM approximate — device clock unavailable; set on first edit
+const VERSION = "v2026:SEP:10-12:40"; // HH:MM approximate — device clock unavailable; set on first edit
 
 const LS_KEY = "mealtrend.v1";
 const BANDS = {
@@ -534,22 +534,59 @@ let STATE = load();
 function rateMeal(m){
   const items = m.items.map(id=>FOOD[id]).filter(Boolean);
   const flags = new Set(items.flatMap(f=>f.flags||[]));
+
+  // Foods whose composition means no purine is expected even without a lab test.
+  // Whole plants and plain drinks only. NOT sauces, curries, gravies, cakes or fats —
+  // those can contain anything, and "we have no number" is not "there is none".
+  const SAFE_BY_COMPOSITION = ["fruit","vegetable","drink"];
+  const measured   = items.filter(f=>f.purine.v!=null);
+  const assumed    = items.filter(f=>f.purine.v==null && SAFE_BY_COMPOSITION.includes(f.cat));
+  const unknown    = items.filter(f=>f.purine.v==null && !SAFE_BY_COMPOSITION.includes(f.cat));
+  const unmapped = (m.unmapped||[]);
+  const coverage = { measured:measured.length, assumed:assumed.length,
+                     unknown:unknown.length+unmapped.length, total:items.length+unmapped.length,
+                     unmapped:unmapped.length };
+
   let rank = 0; const why=[];
-  items.forEach(f=>{ if(f.purine.band){ rank=Math.max(rank,RANK[f.purine.band]); } });
-  const top=items.filter(f=>f.purine.band && RANK[f.purine.band]===rank).map(f=>f.name).slice(0,2).join(", ");
+  measured.forEach(f=>{ if(f.purine.band) rank=Math.max(rank,RANK[f.purine.band]); });
+  const top=measured.filter(f=>f.purine.band && RANK[f.purine.band]===rank).map(f=>f.name).slice(0,2).join(", ");
   if(rank>=3) why.push(`${top} is very high in purine`);
   else if(rank===2) why.push(`${top} has a fair amount of purine`);
+
   if(flags.has("dried_seafood")){ rank=Math.max(rank,3); why.push("Dried seafood is here. Drying removes water, so the purine gets packed tight."); }
   else if(flags.has("dried_seafood_likely")){ rank=Math.max(rank,2); why.push("Gravies like this usually use dried shrimp, but nobody has confirmed it. Ask the stall."); }
   if(flags.has("organ")){ rank=Math.max(rank,3); why.push("Organ meat is very high in purine."); }
   if(m.liquid==="gravy"||m.liquid==="concentrated"){ rank=Math.max(rank,2); why.push("You drank a thick gravy. Purine dissolves in water, so it ends up in the liquid."); }
   else if(m.liquid==="clear"){ why.push("Clear soup only. Less gets pulled into the liquid, so the food itself decides the score."); }
-  else if(!flags.has("dried_seafood")){ if(rank<3){ rank=Math.min(rank,1); } why.push("Cooked dry, no dried seafood. Nothing leaked into a liquid you drank."); }
-  const plantOrZero = items.length && items.every(f=>f.purine.v===0 || (f.purine.v!=null && f.purine.v<50) || (f.purine.v==null && ["fruit","vegetable","drink","cake","dessert","cereal","fat","sauce","curry"].includes(f.cat)));
-  if(plantOrZero && m.liquid==="none" && !flags.has("dried_seafood")) return {rating:"vlow", why:["Nothing here is a real purine source, and there is no soup or gravy."]};
+  else if(!flags.has("dried_seafood")){ if(rank<3) rank=Math.min(rank,1); why.push("Cooked dry, no dried seafood. Nothing leaked into a liquid you drank."); }
+
+  // "Very safe" requires that everything on the plate is actually accounted for.
+  const allAccountedFor = items.length>0 && unknown.length===0 && unmapped.length===0;
+  const allLow = measured.every(f=>f.purine.v<50);
+  if(allAccountedFor && allLow && m.liquid==="none" && !flags.has("dried_seafood")){
+    const line = coverage.assumed
+      ? `Everything here is measured low in purine or is a plain fruit, vegetable or drink. No soup or gravy.`
+      : `Every item here has a measured purine number and they are all low. No soup or gravy.`;
+    return { rating:"vlow", why:[line], coverage };
+  }
+
+  // Missing data must never produce a safety claim.
+  if(unmapped.length){
+    const n=unmapped.slice(0,3).join(", ")+(unmapped.length>3?` and ${unmapped.length-3} more`:"");
+    why.push(`The AI saw ${n} in the photo, but ${unmapped.length===1?"it is":"they are"} not in the food list, so ${unmapped.length===1?"it has":"they have"} no numbers. Add ${unmapped.length===1?"it":"them"} by hand if you can.`);
+    if(rank<1) rank=1;
+  }
+  if(unknown.length){
+    const names = unknown.slice(0,3).map(f=>f.name).join(", ")+(unknown.length>3?` and ${unknown.length-3} more`:"");
+    why.push(`No purine number exists for ${names}. This score cannot be better than "Fine" while that is unknown.`);
+    if(rank<1) rank=1;
+  }
+  if(!items.length && !unmapped.length){ why.push("No foods were added, so this score is based only on how it was cooked."); rank=Math.max(rank,1); }
+  else if(!measured.length && !unmapped.length){ why.push("None of these foods have a measured purine number. The score reflects how it was cooked, not what was in it."); rank=Math.max(rank,1); }
+
   rank=Math.min(rank,3);
   const map=["vlow","low","moderate","high"];
-  return { rating: map[Math.max(rank,1)], why };
+  return { rating: map[Math.max(rank,1)], why, coverage };
 }
 
 // ---------- ANALYSIS ----------
@@ -630,7 +667,7 @@ function recommend(A){
   if(A.gravy) less.push({t:"Thick gravy you drink", d:`${A.gravy} meals, which is ${pct(A.gravy)}% of everything. Leave a third of the gravy in the bowl. The tofu, greens and noodles were fine every single time. It is the liquid.`, src:"Your own meal log"});
   less.push({t:"Prawns in prawn gravy with fried bun", d:"Three problems in one dish. The prawn itself, the gravy made from prawn shells, and a fried bun that soaks the gravy up. Eat the prawn, skip the bun.", src:"Kaneko 2014"});
   if(A.sweet) less.push({t:"Sweet sauces and dips", d:`${A.sweet} of your meals had something sweet in the sauce. Mee siam, sweet and sour, sambal, chilli prawn. Only the mooncake has a real sugar number on the packet.`, src:"WHO 2015 sugar guideline"});
-  if(A.satHigh) less.push({t:"Coconut gravy and pork lard", d:`${A.satHigh} of your meals had a food that is high in saturated fat. Coconut milk is 19 g per 100 g. Pork lard is 39 g. Your whole day should stay under about 22 g. This is the fat that clogs arteries, and it matters more for your heart than cholesterol in food does.`, src:"WHO and AHA saturated fat guidance"});
+  if(A.satHigh) less.push({t:"Coconut gravy and pork lard", d:`${A.satHigh} of your meals had a food measured as high in saturated fat, and many dishes here have never been measured, so the true count is probably higher. Coconut milk is 19 g per 100 g. Pork lard is 39 g. Your whole day should stay under about 22 g. This is the fat that clogs arteries, and it matters more for your heart than cholesterol in food does.`, src:"WHO and AHA saturated fat guidance"});
   less.push({t:"Two risky meals in one day", d:"Your sore toe came after two ikan bilis meals hours apart. What matters is the whole two days, not one plate. Spread the risky ones out.", src:"Zhang 2012"});
   return {more, less};
 }
@@ -704,6 +741,10 @@ function viewDashboard(){
   <div class="chart">${stackedSeq([...STATE.meals].sort((a,b)=>a.seq-b.seq))}
     <div class="key">${Object.entries(A.byRating).map(([k,v])=>`<span><i style="background:${BANDS.rating[k].c}"></i>${BANDS.rating[k].l} — ${v}</span>`).join("")}</div>
   </div>
+  <h2>How solid are these scores?</h2>
+  <p>${(()=>{const c=STATE.meals.map(m=>rateMeal(m).coverage||{unknown:0});const gaps=c.filter(x=>x.unknown>0).length;
+    return gaps? `<b>${gaps} of your ${A.n} meals</b> contain at least one food with no measured purine number. Those meals are never scored better than "Fine", because no data is not the same as no purine.`
+               : `Every meal here is made only of foods with a measured number, or plain fruit, vegetables and drinks.`;})()}</p>
   <h2>What the log shows</h2>
   <p>When you cook food dry and skip dried seafood, it comes out fine almost every time — <b>${A.dryNoSeaLow} out of ${A.dryNoSea}</b>. The one dry meal that scored badly was nasi lemak, and that was the ikan bilis on top, not the cooking.</p>
   <p>Soup and gravy meals are the opposite: <b>${A.liquidElevated} of ${A.liquid}</b> needed watching. But not all of them. Thin clear soup with one piece of low-purine meat scored fine. Thick rempah gravy did not. <b>How strong the liquid is matters more than whether it is a liquid.</b></p>
@@ -877,9 +918,11 @@ function renderModal(){
     ${renderAI(ADD.ai)}
     <label>Add the foods<input class="search" placeholder="Start typing a food" oninput="pickList(this.value)"></label>
     <div id="pick"></div>
+    ${ADD.unmapped&&ADD.unmapped.length?`<div class="alert amber"><b>Seen in the photo but not in the food list</b><p>${ADD.unmapped.map(esc).join(", ")}. These have no numbers, so the score allows for them being unknown.</p></div>`:""}
     <div class="picked">${ADD.items.map(id=>`<span class="tag">${esc(FOOD[id]?.name||id)}<b onclick="ADD.items=ADD.items.filter(x=>x!=='${id}');renderModal()">×</b></span>`).join("")}</div>
     <label>Your own notes<textarea oninput="ADD.note=this.value">${esc(ADD.note||'')}</textarea></label>
-    <div class="verdict"><b>Score for this meal:</b> ${chip(r.rating,'rating')}<ul>${r.why.map(w=>`<li>${esc(w)}</li>`).join("")}</ul>${ADD.source?`<p class="sub">During our conversation this was scored <b>${BANDS.rating[ADD.rating].l}</b>. If you save, the new score replaces it.</p>`:''}</div>
+    <div class="verdict"><b>Score for this meal:</b> ${chip(r.rating,'rating')}<ul>${r.why.map(w=>`<li>${esc(w)}</li>`).join("")}</ul>
+      ${r.coverage&&r.coverage.total?`<p class="from">Based on ${r.coverage.measured} of ${r.coverage.total} ${r.coverage.total===1?"food":"foods"} with a measured purine number${r.coverage.assumed?`, plus ${r.coverage.assumed} plain ${r.coverage.assumed===1?"fruit, vegetable or drink":"fruits, vegetables or drinks"}`:""}${r.coverage.unknown?`, and ${r.coverage.unknown} with no number at all${r.coverage.unmapped?` (${r.coverage.unmapped} the AI saw but could not match)`:""}`:""}.</p>`:""}${ADD.source?`<p class="sub">During our conversation this was scored <b>${BANDS.rating[ADD.rating].l}</b>. If you save, the new score replaces it.</p>`:''}</div>
     <div class="sheetbtns"><button class="btn primary" onclick="saveMeal()">Save</button><button class="btn" onclick="closeModal()">Cancel</button>${ADD.source?'':`<button class="btn warn" onclick="delMeal()">Delete</button>`}</div>
   </div>`;
   $("#modal").classList.add("open");
@@ -956,6 +999,12 @@ NON-NEGOTIABLE RULES
 1. The FOOD LIBRARY below is your first source. If a figure is not in it, you MAY use the web_search tool to find published nutrient data — then you MUST give the source name and URL, and mark it "searched" not "library".
 1b. When sources disagree, say so and give the RANGE, not a midpoint dressed up as a fact. Aggregator sites (SingaporeCalorie, SnapCalorie, MyFitnessPal, calorie blogs) are undisclosed-methodology estimates — label them as such and cap confidence at 50. Prefer, in order: government food composition tables (HPB Singapore, USDA FoodData Central, MEXT Japan), peer-reviewed studies, manufacturer panels, then aggregators.
 1c. Never invent a figure. "not available" remains a correct and expected answer.
+1d. MISSING DATA IS NOT GOOD NEWS. Never let an absent figure support a reassuring conclusion. If you
+   write "no data" for a nutrient anywhere in your answer, you may NOT also claim the meal is free of
+   that nutrient or safe on that axis. Say what is unknown, and say that the verdict is limited by it.
+   Specifically: do not say a dish contains no purine, no saturated fat or no sodium unless the library
+   or a source you searched gives a measured figure showing that. "Nothing here is a purine source" is
+   only allowed when every item has a measured number.
 2. Cite the library id (e.g. [ikan_bilis]) or guideline id (e.g. [GUIDE:purine_window_days]) next to every figure or threshold you use.
 3. Never compute a daily purine total in mg. No meal has a weighed portion.
 4. Dietary cholesterol has NO guideline threshold (removed from US Dietary Guidelines 2015). Rank and note it; never alarm on it. Saturated fat and sodium DO have thresholds and matter more for heart risk — use them: [GUIDE:satfat] and [GUIDE:sodium]. If a dish contains coconut milk, pork lard, deep-fried batter or ghee, say so and give the saturated fat figure if you have one. Only 8 foods in the library carry a measured saturated fat value; web_search for the rest rather than guessing.
@@ -1007,7 +1056,8 @@ ${this.libraryText()}`;
  "what_to_change": [string],
  "what_is_fine": [string],
  "not_available": [string],
- "overall": string
+ "overall": string,
+ "confidence_note": string
 }`,
 
   reviewSchema: `{
@@ -1144,7 +1194,8 @@ liquid consumed (user-declared): ${meal.liquid}
 ingredient checked with cook/stall: ${meal.checked?"yes":"no"}
 user note: ${meal.note||"-"}
 
-If any identified food is NOT in the library, use web_search to find its published nutrient data (energy, protein, fat, saturated fat, carbohydrate, fibre, sodium, sugar, cholesterol per 100 g or per piece) before answering. Fill "nutrients" with what you find, marking basis "searched" and giving source + url. Give ranges where sources disagree.\n\nReturn the JSON object only — no markdown fences, no text before or after.\nKeep every string under 35 words and arrays to at most 6 entries for "nutrients", 4 for the rest.\nSchema:\n${this.mealSchema}`;
+If any identified food is NOT in the library, use web_search to find its published nutrient data (energy, protein, fat, saturated fat, carbohydrate, fibre, sodium, sugar, cholesterol per 100 g or per piece) before answering. Fill "nutrients" with what you find, marking basis "searched" and giving source + url. Give ranges where sources disagree.\n\nReturn the JSON object only — no markdown fences, no text before or after.\nIn "confidence_note", say in one plain sentence how much of this meal you actually had numbers for, and what that means for how much to trust your verdict.
+Keep every string under 35 words and arrays to at most 6 entries for "nutrients", 4 for the rest.\nSchema:\n${this.mealSchema}`;
     const content=[];
     if(imageB64) content.push({type:"image", source:{type:"base64", media_type:mediaType||"image/jpeg", data:imageB64}});
     content.push({type:"text", text:context});
@@ -1229,6 +1280,11 @@ async function runMealAI(){
     if(r.parseError){ ADD.ai={ error: r.truncated ? "The AI ran out of room to finish its answer, twice. Try again, or pick fewer foods." : "The AI replied in the wrong format. Try again." , raw:r.raw}; }
     else { ADD.ai=r.json; ADD.ai.degraded=r.degraded; ADD.ai.model=AI.model(); ADD.ai.at=new Date().toISOString(); ADD.ai.usage=r.usage; ADD.ai.searches=r.searches;
       (ADD.ai.identified_items||[]).forEach(it=>{ if(it.library_id && FOOD[it.library_id] && !ADD.items.includes(it.library_id) && it.confidence>=60) ADD.items.push(it.library_id); });
+      // Foods the AI saw but could not match to the food list must not vanish. The score has to
+      // know they exist, otherwise a plate of gravy scores as if it were only the rice.
+      ADD.unmapped = (ADD.ai.identified_items||[])
+        .filter(it=>!(it.library_id && FOOD[it.library_id]))
+        .map(it=>it.name);
       if(ADD.ai.liquid_class && ADD.liquid==="none" && ADD.ai.liquid_class!=="none") ADD.liquid=ADD.ai.liquid_class;
       if(!ADD.label && ADD.ai.identified_items?.length) ADD.label=ADD.ai.identified_items.slice(0,3).map(i=>i.name).join(", ");
     }
@@ -1256,9 +1312,10 @@ async function runLogAI(){
 // ============================================================
 const DIAG_STEPS = [
   { id:"net",    name:"1. Internet reachable",
-    what:"Fetches a tiny public file. If this fails, nothing else can work.",
-    run: async ()=>{ const r=await fetch("https://api.anthropic.com/v1/messages",{method:"OPTIONS"});
-                     return `Reached api.anthropic.com (preflight returned ${r.status})`; } },
+    what:"Sends a no-cors request, which browsers never block. Proves the phone is online.",
+    run: async ()=>{ if(navigator.onLine===false) throw Object.assign(new Error("The phone reports it is offline."),{kind:"network"});
+                     await fetch("https://fonts.gstatic.com/", {mode:"no-cors", cache:"no-store"});
+                     return "The phone is online and can reach the open internet."; } },
   { id:"key",    name:"2. Key and CORS",
     what:"Smallest possible request: no photo, no tools, no food list.",
     run: async ()=>{ const d=await AI.raw({model:AI.model(),max_tokens:16,
@@ -1305,17 +1362,18 @@ async function runDiagnostics(){
   const results=[];
   const paint=()=>{ box.innerHTML = results.map(r=>`
     <div class="alert ${r.state==='pass'?'':(r.state==='fail'?'red':'amber')}" style="${r.state==='pass'?'background:var(--pandan-bg);border-color:var(--pandan)':''}">
-      <b>${r.state==="pass"?"Passed":r.state==="fail"?"Failed":"Running…"} — ${esc(r.name)}</b>
+      <b>${r.state==="pass"?"Passed":r.state==="fail"?"Failed":r.state==="skip"?"Skipped":"Running…"} — ${esc(r.name)}</b>
       <p class="from">${esc(r.what)}</p>
       ${r.msg?`<p>${esc(r.msg)}</p>`:""}
     </div>`).join("") + (results.some(r=>r.state==="fail")
       ? `<div class="alert amber"><b>What this means</b><p>${esc(diagVerdict(results))}</p></div>` : "");
   };
   for(const step of DIAG_STEPS){
-    const row={name:step.name, what:step.what, state:"run", msg:""};
+    const row={id:step.id, name:step.name, what:step.what, state:"run", msg:""};
     results.push(row); paint();
     try{ row.msg = await step.run(); row.state="pass"; }
-    catch(e){ row.msg = aiErrorHelp(e) + (e.message&&e.kind!=="network"?` (${e.message.slice(0,160)})`:""); row.state="fail"; paint(); break; }
+    catch(e){ row.msg = aiErrorHelp(e) + (e.message?` — ${e.message.slice(0,200)}`:""); row.state="fail"; paint();
+              if(step.id==="key"){ results.push({name:"Remaining checks skipped", what:"Without a working key the rest cannot run.", state:"skip", msg:""}); paint(); break; } }
     paint();
   }
   if(!results.some(r=>r.state==="fail")){
@@ -1324,14 +1382,22 @@ async function runDiagnostics(){
 }
 
 function diagVerdict(results){
-  const failed = results.find(r=>r.state==="fail");
-  if(!failed) return "";
-  const n = results.length;
-  if(n===1) return "The app cannot reach Anthropic at all. This is your network, not the app. A VPN, a content blocker, corporate Wi-Fi, or iOS Lockdown Mode will all do this. Try mobile data if you are on Wi-Fi, or the other way round.";
-  if(n===2) return "The network is fine but the request was refused. Check the API key in Settings, and check the key has credit on console.anthropic.com.";
-  if(n===3) return "Small requests work but the 8 KB food list does not. That points at a proxy or gateway limiting request size. Try a different network.";
-  if(n===4) return "Everything works until the photo. The photo is too large for this connection. Use Wi-Fi, or take the picture from further back so the file is smaller.";
-  if(n===5) return "Everything works except web search. Leave 'Let the AI look things up online' switched off in Settings and photo analysis will work.";
+  const st = id => { const r=results.find(x=>x.id===id); return r? r.state : null; };
+  if(!results.some(r=>r.state==="fail")) return "";
+  const f = id => st(id)==="fail";
+  // Check 1 is only a hint. Some networks block the site it pings while Anthropic works fine.
+  if(f("net") && st("key")==="pass")
+    return "Ignore check 1. Some networks block the site it pings, but check 2 proves the app reached Anthropic, which is what matters.";
+  if(f("net") && st("key")!=="pass")
+    return "The phone could not reach the open internet at all. A VPN, a content blocker, iOS Lockdown Mode, or a Wi-Fi login page will all do this.";
+  if(f("key"))
+    return "The network works but Anthropic refused or never received the request. Two things to try, in order. First: open the iPhone Settings app, go to Apps then Safari, and turn OFF Prevent Cross-Site Tracking, then reload this page. That setting blocks the kind of request this app makes. Second: check the key in Settings starts with sk-ant- and has credit at console.anthropic.com.";
+  if(f("system"))
+    return "Small requests work but the 8 KB food list does not. Something on this network limits request size. Try a different network.";
+  if(f("image"))
+    return "Everything works until the photo. The photo is too large for this connection. Leave 'Send bigger photos' switched off, or use Wi-Fi.";
+  if(f("tools"))
+    return "Everything works except web search. Leave 'Let the AI look things up online' switched off and photo analysis will work.";
   return "";
 }
 
@@ -1341,7 +1407,7 @@ function aiErrorHelp(e){
   if(k==="rate")    return "Anthropic is rate-limiting your key. Wait a minute and try again.";
   if(k==="server")  return "Anthropic's server had a problem. Try again in a moment.";
   if(k==="timeout") return "The request took too long. On a mobile connection this usually means the photo was too big or the network dropped. Try on Wi-Fi, or turn off web search in Settings to make it faster.";
-  if(k==="network") return "Could not reach Anthropic. Three things to check: are you online, is your key set in Settings, and is a VPN or content blocker in the way? Trying on Wi-Fi often fixes it.";
+  if(k==="network") return "The request never reached Anthropic. On an iPhone the usual cause is Safari blocking cross-site requests: open the Settings app, go to Apps then Safari, and turn OFF Prevent Cross-Site Tracking, then reload this page. A VPN, a content blocker or Lockdown Mode will also do it.";
   if(k==="cancelled") return "You stopped it.";
   if(k==="format")  return "The AI replied in a format the app could not read. Try again.";
   return String(e.message||e);
@@ -1370,6 +1436,7 @@ function renderAI(ai){
     ${ai.what_to_change?.length?`<div class="part"><b>Change this</b><ul>${li(ai.what_to_change)}</ul></div>`:""}
     ${ai.what_is_fine?.length?`<div class="part"><b>This part is fine</b><ul>${li(ai.what_is_fine)}</ul></div>`:""}
     ${ai.not_available?.length?`<div class="part"><b>No data for these</b><ul>${li(ai.not_available)}</ul></div>`:""}
+    ${ai.confidence_note?`<div class="part"><b>How sure is this?</b> ${esc(ai.confidence_note)}</div>`:""}
     ${ai.searches?.length?`<div class="part"><b>Looked up online</b> ${ai.searches.map(q=>`<span class="tag">${esc(q)}</span>`).join("")}</div>`:""}
     <p class="disc">Numbers marked "library" are fixed and come from published research. Numbers marked "searched" were looked up just now — click the link and check them. Calorie-counting websites are guesses, not lab tests. This is written by an AI, not a real dietitian, and it cannot diagnose you.</p>
   </div>`;
