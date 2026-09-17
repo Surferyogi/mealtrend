@@ -147,6 +147,27 @@
   .tag b{margin-left:8px;cursor:pointer;color:var(--chilli);font-size:19px}
   .verdict{background:var(--card);border:2px solid var(--ink);border-radius:12px;padding:16px;margin:18px 0}
   .verdict ul{margin:10px 0 0;padding-left:22px;color:var(--ink2);font-size:16px}
+  .overallrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding-bottom:14px;border-bottom:2px solid var(--line)}
+  .overallrow b{font-size:18px}
+  .overallrow .from{flex-basis:100%;margin:0}
+  .axes{margin-top:4px}
+  .axis{border-bottom:1px solid var(--line)}
+  .axis:last-child{border-bottom:0}
+  .axis>summary{display:flex;align-items:center;gap:10px;padding:13px 0;cursor:pointer;list-style:none;min-height:48px}
+  .axis>summary::-webkit-details-marker{display:none}
+  .axis>summary::after{content:"+";margin-left:auto;font-size:22px;font-weight:700;color:var(--ink2)}
+  .axis[open]>summary::after{content:"−"}
+  .axname{font-weight:700;font-size:17px;min-width:118px}
+  .axis ul{margin:0 0 10px;padding-left:22px;font-size:15.5px;color:var(--ink2)}
+  .axis li{margin-bottom:6px}
+  .axis .from{margin:0 0 12px}
+  details.moredetail{margin:14px 0 0;border-top:1px solid var(--line);padding-top:12px}
+  details.moredetail>summary{cursor:pointer;font-weight:700;font-size:16.5px;padding:10px 0;min-height:44px;
+    display:flex;align-items:center;list-style:none}
+  details.moredetail>summary::-webkit-details-marker{display:none}
+  details.moredetail>summary::after{content:"+";margin-left:auto;font-size:22px;color:var(--ink2)}
+  details.moredetail[open]>summary::after{content:"−"}
+  details.moredetail h3{margin-top:14px}
   .sheetbtns{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
   .ai{background:var(--pandan-bg);border:2px solid var(--pandan);border-radius:12px;padding:20px;margin:16px 0}
   .ai.failed{background:var(--chilli-bg);border-color:var(--chilli)}
@@ -509,7 +530,7 @@ const SEED_MEALS = [
 // MEALTREND — app logic
 // Version stamp convention: vYYYY:MMM:DD-HH:MM (Asia/Singapore)
 // ============================================================
-const VERSION = "v2026:SEP:10-12:40"; // HH:MM approximate — device clock unavailable; set on first edit
+const VERSION = "v2026:SEP:11-09:30"; // HH:MM approximate — device clock unavailable; set on first edit
 
 const LS_KEY = "mealtrend.v1";
 const BANDS = {
@@ -587,6 +608,86 @@ function rateMeal(m){
   rank=Math.min(rank,3);
   const map=["vlow","low","moderate","high"];
   return { rating: map[Math.max(rank,1)], why, coverage };
+}
+
+
+// ---------- AXIS SCORERS ----------
+// Every axis returns {rating, why[], coverage{measured,total,unknown}} or rating:null when
+// nothing on the plate has a number. null is never treated as "fine".
+const AXES = [
+  { id:"purine", name:"Purine",        unit:"gout risk" },
+  { id:"gi",     name:"Blood sugar",   unit:"how fast it spikes" },
+  { id:"satfat", name:"Saturated fat", unit:"heart risk" },
+  { id:"sodium", name:"Salt",          unit:"blood pressure" },
+];
+
+function scoreGI(items, m){
+  const withGI = items.filter(f=>f.gi.v!=null || f.gi.band);
+  const starch = items.filter(f=>["rice","rice dish","noodle","noodle dish","bread","bun","cake","snack","dessert","cereal"].includes(f.cat));
+  if(!withGI.length){
+    return { rating:null, why: starch.length
+      ? [`There is starch here (${starch.slice(0,2).map(f=>f.name).join(", ")}) but none of it has a tested number.`]
+      : ["Nothing here has a tested blood sugar number."],
+      coverage:{measured:0,total:items.length,unknown:items.length} };
+  }
+  const worst = withGI.reduce((w,f)=>{ const r={low:1,med:2,high:3}[f.gi.band]||0; return r>w.r?{r,f}:w; },{r:0,f:null});
+  const why=[];
+  if(worst.f) why.push(`${worst.f.name}${worst.f.gi.v!=null?` scores ${worst.f.gi.v}`:""} — ${({low:"slow",med:"medium",high:"fast"})[worst.f.gi.band]}.`);
+  why.push("This is the fastest single food here, not the whole plate. Portion size was not recorded.");
+  // Composition: fat + protein + vegetables alongside starch slows the whole plate down.
+  const hasFat = items.some(f=>["fat"].includes(f.cat) || (f.satfat&&f.satfat.v>3));
+  const hasProt = items.some(f=>["poultry","fish","pork","egg","soy","seafood"].includes(f.cat));
+  const hasVeg = items.some(f=>f.cat==="vegetable");
+  let rating = {1:"low",2:"moderate",3:"high"}[worst.r] || "low";
+  if(rating==="high" && hasProt && hasVeg && hasFat){
+    rating="moderate";
+    why.push("Protein, fat and vegetables on the same plate slow it down. Plain rice scored 96 in one study; the same rice with oil, chicken and veg scored 50.");
+  }
+  const unmeasured = items.filter(f=>f.gi.v==null && !f.gi.band && ["rice","rice dish","noodle","noodle dish","bread","bun","cake","snack","dessert"].includes(f.cat));
+  if(unmeasured.length) why.push(`No tested number for ${unmeasured.slice(0,2).map(f=>f.name).join(", ")}.`);
+  return { rating, why, coverage:{measured:withGI.length,total:items.length,unknown:unmeasured.length} };
+}
+
+function scoreSatfat(items){
+  const withSF = items.filter(f=>f.satfat && f.satfat.v!=null);
+  const fatty = items.filter(f=>!f.satfat||f.satfat.v==null).filter(f=>["fat","gravy","curry","sauce","bun","snack"].includes(f.cat));
+  if(!withSF.length){
+    return { rating:null, why:[ fatty.length
+      ? `Nothing here has a measured saturated fat number, and ${fatty.slice(0,2).map(f=>f.name).join(", ")} could be high.`
+      : "Nothing here has a measured saturated fat number." ],
+      coverage:{measured:0,total:items.length,unknown:items.length} };
+  }
+  const worst = withSF.reduce((w,f)=>{ const r={low:1,med:2,high:3}[f.satfat.band]||0; return r>w.r?{r,f}:w; },{r:0,f:null});
+  const why=[`${worst.f.name} is ${worst.f.satfat.v} g per 100 g${worst.f.satfat.band==="high"?" — that counts as high":worst.f.satfat.band==="med"?" — medium":" — low"}.`];
+  why.push("A whole day should stay under about 22 g. These are per-100 g figures and nothing here was weighed, so a scattering of lard is not the same as a plateful.");
+  if(fatty.length) why.push(`No number for ${fatty.slice(0,2).map(f=>f.name).join(", ")}, which could add more.`);
+  return { rating:{1:"low",2:"moderate",3:"high"}[worst.r]||"low", why,
+           coverage:{measured:withSF.length,total:items.length,unknown:fatty.length} };
+}
+
+function scoreSodium(items, m){
+  // The food library has NO sodium figures. Saying anything else would be inventing data.
+  const salty = items.filter(f=>["gravy","curry","sauce","broth","dried seafood"].includes(f.cat));
+  const why = ["No food in this app has a measured sodium number yet."];
+  if(salty.length) why.push(`${salty.slice(0,3).map(f=>f.name).join(", ")} are usually salty, but that is a guess, not a measurement.`);
+  if(m.liquid!=="none") why.push("Drinking the soup or gravy is where most hawker sodium comes from.");
+  why.push("Ask the AI dietitian — it can look up a figure for the dish.");
+  return { rating:null, why, coverage:{measured:0,total:items.length,unknown:items.length} };
+}
+
+function scoreMeal(m){
+  const items = m.items.map(id=>FOOD[id]).filter(Boolean);
+  const p = rateMeal(m);
+  const axes = {
+    purine: { rating:p.rating, why:p.why, coverage:p.coverage },
+    gi:     scoreGI(items, m),
+    satfat: scoreSatfat(items),
+    sodium: scoreSodium(items, m),
+  };
+  const scored = Object.entries(axes).filter(([k,v])=>v.rating);
+  const missing = Object.entries(axes).filter(([k,v])=>!v.rating).map(([k])=>k);
+  const worst = scored.reduce((w,[k,v])=>RANK[v.rating]>RANK[w.rating]?{k,rating:v.rating}:w,{k:null,rating:"vlow"});
+  return { overall: worst.rating, worstAxis: worst.k, axes, missing, scoredCount:scored.length };
 }
 
 // ---------- ANALYSIS ----------
@@ -915,14 +1016,25 @@ function renderModal(){
     ${ADD.thumb?`<img class="thumb" src="data:image/jpeg;base64,${ADD.thumb}" alt="">`:""}
     <button id="aiBtn" class="btn primary" onclick="runMealAI()" ${AI.ready()?"":"disabled title='Add API key under More → AI'"}>${ADD.ai?"Ask again":"Ask the AI dietitian"}${PENDING_IMG?" about this photo":""}</button>
     <button id="aiCancel" class="btn warn" style="display:none" onclick="stopAI()">Stop</button>
+    <div id="aiWarn" class="alert amber" style="display:none"><b>Keep this screen on</b><p>If the phone locks or you switch apps, iOS stops the request. It should finish in under a minute.</p></div>
     ${renderAI(ADD.ai)}
     <label>Add the foods<input class="search" placeholder="Start typing a food" oninput="pickList(this.value)"></label>
     <div id="pick"></div>
     ${ADD.unmapped&&ADD.unmapped.length?`<div class="alert amber"><b>Seen in the photo but not in the food list</b><p>${ADD.unmapped.map(esc).join(", ")}. These have no numbers, so the score allows for them being unknown.</p></div>`:""}
     <div class="picked">${ADD.items.map(id=>`<span class="tag">${esc(FOOD[id]?.name||id)}<b onclick="ADD.items=ADD.items.filter(x=>x!=='${id}');renderModal()">×</b></span>`).join("")}</div>
     <label>Your own notes<textarea oninput="ADD.note=this.value">${esc(ADD.note||'')}</textarea></label>
-    <div class="verdict"><b>Score for this meal:</b> ${chip(r.rating,'rating')}<ul>${r.why.map(w=>`<li>${esc(w)}</li>`).join("")}</ul>
-      ${r.coverage&&r.coverage.total?`<p class="from">Based on ${r.coverage.measured} of ${r.coverage.total} ${r.coverage.total===1?"food":"foods"} with a measured purine number${r.coverage.assumed?`, plus ${r.coverage.assumed} plain ${r.coverage.assumed===1?"fruit, vegetable or drink":"fruits, vegetables or drinks"}`:""}${r.coverage.unknown?`, and ${r.coverage.unknown} with no number at all${r.coverage.unmapped?` (${r.coverage.unmapped} the AI saw but could not match)`:""}`:""}.</p>`:""}${ADD.source?`<p class="sub">During our conversation this was scored <b>${BANDS.rating[ADD.rating].l}</b>. If you save, the new score replaces it.</p>`:''}</div>
+    <div class="verdict">
+      ${(()=>{const S=scoreMeal(ADD);const AX={purine:"Purine",gi:"Blood sugar",satfat:"Saturated fat",sodium:"Salt"};
+        return `<div class="overallrow"><b>Overall</b> ${chip(S.overall,'rating')}
+          <span class="from">${S.scoredCount?`Set by the worst of the ${S.scoredCount} ${S.scoredCount===1?"axis":"axes"} we have numbers for${S.worstAxis?`: ${AX[S.worstAxis].toLowerCase()}`:""}.`:"Nothing here has numbers on any axis."}${S.missing.length?` No data for ${S.missing.map(k=>AX[k].toLowerCase()).join(", ")}.`:""}</span></div>
+        <div class="axes">${Object.entries(S.axes).map(([k,v])=>`
+          <details class="axis">
+            <summary><span class="axname">${AX[k]}</span> ${v.rating?chip(v.rating,'rating'):'<span class="status s-none">No data</span>'}</summary>
+            <ul>${v.why.map(w=>`<li>${esc(w)}</li>`).join("")}</ul>
+            ${v.coverage&&v.coverage.total?`<p class="from">${v.coverage.measured} of ${v.coverage.total} foods have a number here.</p>`:""}
+          </details>`).join("")}</div>`;})()}
+      ${ADD.source?`<p class="sub">During our conversation this was scored <b>${BANDS.rating[ADD.rating].l}</b>. If you save, the new score replaces it.</p>`:''}
+    </div>
     <div class="sheetbtns"><button class="btn primary" onclick="saveMeal()">Save</button><button class="btn" onclick="closeModal()">Cancel</button>${ADD.source?'':`<button class="btn warn" onclick="delMeal()">Delete</button>`}</div>
   </div>`;
   $("#modal").classList.add("open");
@@ -1012,6 +1124,9 @@ NON-NEGOTIABLE RULES
 6. Singapore hawker and home dishes vary by stall and kitchen. When an ingredient is conventional but unconfirmed (e.g. hae bee in laksa rempah, belacan in sambal, conpoy in a double-boiled soup), DO NOT assume it. State it as unconfirmed and put a specific question in "questions_to_ask". This user's answers to such questions have lowered the rating 4 times out of 4.
 7. Purine rating logic, in order: highest purine band among items → confirmed dried seafood or organ meat forces at least High → a gravy conventionally containing dried seafood (unconfirmed) forces at least Moderate → concentrated liquid or gravy consumed forces at least Moderate → clear gently-simmered stock: rating follows the solids → dry-cooked with no dried seafood: cap at Low unless a High-band item is present.
 8. Glycaemic reasoning: GI is per reference food; composite hawker dishes rarely have a tested value. Composition matters more than substitution — in one Singapore study plain white rice measured 96 and the same rice with oil, chicken and vegetables measured 50 [white_rice][rice_oil_chicken_veg]. Say so when the plate has protein/fat/vegetables alongside starch.
+8b. SCORE EVERY AXIS, NOT JUST PURINE. The app shows the user a breakdown across purine, blood
+   sugar, saturated fat and salt. Your "overall" must be ONE sentence naming which axis matters most
+   here and what to do. Keep it under 25 words — it is the only line most people will read.
 9. WRITE FOR A 15-YEAR-OLD. This is a hard requirement, not a style preference.
    - Short sentences. One idea each. Aim for 15 words or fewer.
    - Everyday words. Say "how fast it raises your blood sugar", not "glycaemic response". Say "fat that is bad for your heart", not "saturated fatty acid profile". Say "salt", not "sodium chloride" — though "sodium" itself is fine, it is on every label.
@@ -1239,6 +1354,24 @@ function fileToResized(file, maxPx, quality){
   });
 }
 
+
+// ---------- KEEPING THE PHONE AWAKE ----------
+// iOS suspends a backgrounded tab and kills its fetches. Three defences:
+//  a) hold a screen wake lock while a request is running
+//  b) notice when the page was hidden mid-request and say so instead of blaming the network
+//  c) offer a one-tap resume when the user comes back
+let WAKE=null, WENT_AWAY=false;
+async function holdScreenAwake(){
+  WENT_AWAY=false;
+  try{ if(navigator.wakeLock && !WAKE) WAKE = await navigator.wakeLock.request("screen"); }catch(e){ /* not supported: fall through */ }
+}
+function releaseScreen(){ try{ if(WAKE){ WAKE.release(); WAKE=null; } }catch(e){} }
+document.addEventListener("visibilitychange", ()=>{
+  if(document.hidden && AI_TIMER) WENT_AWAY=true;
+  // A wake lock is dropped automatically when the page hides; take it again on return.
+  if(!document.hidden && AI_TIMER) holdScreenAwake();
+});
+
 // ---------- UI hooks ----------
 let PENDING_IMG=null; // full-res base64 for the API call; not persisted
 async function onPhoto(inp){
@@ -1259,6 +1392,7 @@ function aiBusy(label, secs){
   const btn=$("#aiBtn"); if(!btn) return;
   const leg = label==="full" ? "reading the photo" : label==="no search" ? "trying again, no web search" : "trying without the photo";
   btn.textContent = `Thinking… ${secs}s · ${leg}`;
+  const w=$("#aiWarn"); if(w) w.style.display = secs>=6 ? "block" : "none";
 }
 function stopAI(){
   if(AI_CTL) AI_CTL.abort();
@@ -1271,6 +1405,7 @@ async function runMealAI(){
   const btn=$("#aiBtn"); btn.disabled=true;
   const cancel=$("#aiCancel"); if(cancel) cancel.style.display="inline-block";
   AI_CTL=new AbortController();
+  await holdScreenAwake();
   let secs=0, leg="full";
   aiBusy(leg,0);
   AI_TIMER=setInterval(()=>{ secs++; aiBusy(leg,secs); }, 1000);
@@ -1294,7 +1429,11 @@ async function runMealAI(){
       : { error: aiErrorHelp(e), raw:e.raw, tried:e.tried };
   }finally{
     if(AI_TIMER){ clearInterval(AI_TIMER); AI_TIMER=null; }
-    AI_CTL=null;
+    AI_CTL=null; releaseScreen();
+  }
+  // If the phone slept or the app was backgrounded mid-request, say so plainly and offer a resume.
+  if(ADD.ai && ADD.ai.error && WENT_AWAY){
+    ADD.ai = { error:"The phone locked or you switched apps while it was thinking, so iOS cut the request off. Keep this screen open and tap Ask again.", resumable:true };
   }
   renderModal();
 }
@@ -1417,43 +1556,57 @@ function renderAI(ai){
   if(ai.error) return `<div class="ai failed"><b>The AI could not finish</b><p>${esc(ai.error)}</p>
     ${ai.tried&&ai.tried.length?`<p class="disc">Tried: ${esc(ai.tried.join(" → "))}</p>`:""}
     ${ai.raw?`<pre>${esc(String(ai.raw).slice(0,600))}</pre>`:""}
-    <p class="disc">Go to Settings and press <b>Find out what is broken</b>. It runs five checks and tells you exactly which part is failing.</p></div>`;
+    ${ai.resumable?"":`<p class="disc">Go to Settings and press <b>Find out what is broken</b>. It runs five checks and tells you exactly which part is failing.</p>`}</div>`;
   const li=a=>(a||[]).map(x=>`<li>${esc(x)}</li>`).join("");
   const cites=c=>(c||[]).length?`<span class="cites">${(c||[]).map(esc).join(" ")}</span>`:"";
+  const band=b=>b&&b!=="not available"?chip(b==="medium"?"med":b,'gi'):'<span class="status s-none">No data</span>';
+
+  // THE HEADLINE — what you read in three seconds.
+  const head = `
+    <p class="summary">${esc(ai.overall||"")}</p>
+    ${ai.headline_axis?`<div class="part main"><b>The main thing here</b> <span class="status s-moderate">${esc(ai.headline_axis)}</span> ${esc(ai.headline_why||"")}</div>`:""}
+    ${ai.what_to_change?.length?`<div class="part"><b>Change this</b><ul>${li(ai.what_to_change.slice(0,2))}</ul></div>`:""}
+    ${ai.questions_to_ask?.length?`<div class="part ask"><b>Ask before you assume</b><ul>${li(ai.questions_to_ask.slice(0,2))}</ul></div>`:""}`;
+
+  // EVERYTHING ELSE — folded away.
+  const more = `
+    ${ai.confidence_note?`<div class="part"><b>How sure is this?</b> ${esc(ai.confidence_note)}</div>`:""}
+    ${ai.nutrients?.length?`<div class="part"><b>What is in it</b><table class="ntab"><tr><th>Nutrient</th><th>Amount</th><th>Where from</th><th>Sure?</th></tr>${ai.nutrients.map(n=>`<tr class="${n.basis==="not available"?"none":""}"><td>${esc(n.nutrient)}</td><td>${esc(n.value)}</td><td>${n.url?`<a href="${esc(n.url)}" target="_blank" rel="noopener">${esc(n.basis)}</a>`:esc(n.basis)}${n.source?`<span class="where">${esc(n.source)}</span>`:""}</td><td>${n.confidence!=null?n.confidence+"%":"—"}</td></tr>${n.note?`<tr class="rownote"><td colspan="4">${esc(n.note)}</td></tr>`:""}`).join("")}</table></div>`:""}
+    <div class="part"><b>Purine</b> ${ai.purine?.rating?chip(ai.purine.rating,'rating'):'<span class="status s-none">No data</span>'} ${esc(ai.purine?.rationale||"")} ${cites(ai.purine?.cites)}</div>
+    <div class="part"><b>Blood sugar</b> ${band(ai.glycaemic?.band)} ${esc(ai.glycaemic?.rationale||"")} ${cites(ai.glycaemic?.cites)}</div>
+    ${ai.sodium_satfat?`<div class="part"><b>Salt and heart fat</b> ${esc(ai.sodium_satfat)}</div>`:""}
+    ${ai.sugar?.note?`<div class="part"><b>Sugar</b> ${esc(ai.sugar.note)} ${cites(ai.sugar.cites)}</div>`:""}
+    ${ai.lipids?.note?`<div class="part"><b>Fats</b> ${esc(ai.lipids.note)} ${cites(ai.lipids.cites)}</div>`:""}
+    ${ai.identified_items?.length?`<div class="part"><b>Identified</b> ${ai.identified_items.map(x=>`<span class="tag">${esc(x.name)}${x.library_id?"":" (not in the food list)"} ${x.confidence}%</span>`).join("")}</div>`:""}
+    ${ai.what_to_change?.length>2?`<div class="part"><b>More to change</b><ul>${li(ai.what_to_change.slice(2))}</ul></div>`:""}
+    ${ai.what_is_fine?.length?`<div class="part"><b>This part is fine</b><ul>${li(ai.what_is_fine)}</ul></div>`:""}
+    ${ai.questions_to_ask?.length>2?`<div class="part"><b>More to ask</b><ul>${li(ai.questions_to_ask.slice(2))}</ul></div>`:""}
+    ${ai.not_available?.length?`<div class="part"><b>No data for these</b><ul>${li(ai.not_available)}</ul></div>`:""}
+    ${ai.searches?.length?`<div class="part"><b>Looked up online</b> ${ai.searches.map(q=>`<span class="tag">${esc(q)}</span>`).join("")}</div>`:""}`;
+
   return `<div class="ai">
     <div class="who"><b>AI dietitian note</b><span>${esc(ai.model||"")}${ai.degraded?` · ${esc(ai.degraded)}`:""}</span></div>
     ${ai.degraded?`<p class="disc">The first attempt did not go through, so this ran ${ai.degraded==="no search"?"without looking anything up online":"without the photo"}. Try again on Wi-Fi for a fuller answer.</p>`:""}
-    <p class="summary">${esc(ai.overall||"")}</p>
-    ${ai.identified_items?.length?`<div class="part"><b>Identified</b> ${ai.identified_items.map(i=>`<span class="tag">${esc(i.name)}${i.library_id?"":" <em>(not in library)</em>"} <span class="mono">${i.confidence}%</span></span>`).join("")}</div>`:""}
-    ${ai.headline_axis?`<div class="part main"><b>The main thing here</b> <span class="status s-moderate">${esc(ai.headline_axis)}</span> ${esc(ai.headline_why||"")}</div>`:""}
-    ${ai.nutrients?.length?`<div class="part"><b>What is in it</b><table class="ntab"><tr><th>Nutrient</th><th>Amount</th><th>Where from</th><th>Sure?</th></tr>${ai.nutrients.map(n=>`<tr class="${n.basis==="not available"?"none":""}"><td>${esc(n.nutrient)}</td><td class="mono">${esc(n.value)}</td><td>${n.url?`<a href="${esc(n.url)}" target="_blank" rel="noopener">${esc(n.basis)}</a>`:esc(n.basis)}${n.source?`<span class="where">${esc(n.source)}</span>`:""}</td><td class="mono">${n.confidence!=null?n.confidence+"%":"—"}</td></tr>${n.note?`<tr class="rownote"><td colspan="4">${esc(n.note)}</td></tr>`:""}`).join("")}</table></div>`:""}
-    <div class="part"><b>Purine</b> ${chip(ai.purine?.rating,'rating')} <span>${esc(ai.purine?.rationale||"")}</span> ${cites(ai.purine?.cites)}</div>
-    <div class="part"><b>Blood sugar</b> ${ai.glycaemic?.band&&ai.glycaemic.band!=="not available"?chip(ai.glycaemic.band==="medium"?"med":ai.glycaemic.band,'gi'):'<span class="nodata">No data</span>'} <span>${esc(ai.glycaemic?.rationale||"")}</span> ${cites(ai.glycaemic?.cites)}</div>
-    ${ai.sugar?.note?`<div class="part"><b>Sugar</b> ${esc(ai.sugar.note)} ${cites(ai.sugar.cites)}</div>`:""}
-    ${ai.lipids?.note?`<div class="part"><b>Fats</b> ${esc(ai.lipids.note)} ${cites(ai.lipids.cites)}</div>`:""}
-    ${ai.sodium_satfat?`<div class="part"><b>Salt and heart fat</b> ${esc(ai.sodium_satfat)}</div>`:""}
-    ${ai.questions_to_ask?.length?`<div class="part ask"><b>Ask before you assume</b><ul>${li(ai.questions_to_ask)}</ul></div>`:""}
-    ${ai.what_to_change?.length?`<div class="part"><b>Change this</b><ul>${li(ai.what_to_change)}</ul></div>`:""}
-    ${ai.what_is_fine?.length?`<div class="part"><b>This part is fine</b><ul>${li(ai.what_is_fine)}</ul></div>`:""}
-    ${ai.not_available?.length?`<div class="part"><b>No data for these</b><ul>${li(ai.not_available)}</ul></div>`:""}
-    ${ai.confidence_note?`<div class="part"><b>How sure is this?</b> ${esc(ai.confidence_note)}</div>`:""}
-    ${ai.searches?.length?`<div class="part"><b>Looked up online</b> ${ai.searches.map(q=>`<span class="tag">${esc(q)}</span>`).join("")}</div>`:""}
-    <p class="disc">Numbers marked "library" are fixed and come from published research. Numbers marked "searched" were looked up just now — click the link and check them. Calorie-counting websites are guesses, not lab tests. This is written by an AI, not a real dietitian, and it cannot diagnose you.</p>
+    ${head}
+    <details class="moredetail"><summary>Show the full breakdown</summary>${more}</details>
+    <p class="disc">Numbers marked "library" are fixed and come from published research. Numbers marked "searched" were looked up just now — click the link and check them. Written by an AI, not a real dietitian, and it cannot diagnose you.</p>
   </div>`;
 }
+
 function renderReview(r){
   if(!r) return "";
   const cites=c=>(c||[]).length?`<span class="cites">${(c||[]).map(esc).join(" ")}</span>`:"";
   return `<div class="ai">
     <div class="who"><b>Review of all your meals</b><span class="mono">${esc(r.model||"")} · ${(r.at||"").slice(0,10)}</span></div>
     <p class="summary">${esc(r.headline||"")}</p>
-    <h3>Patterns I can see</h3>${(r.patterns||[]).map(p=>`<div class="tip"><b>${esc(p.pattern)}</b><p>${esc(p.evidence)}</p>${cites(p.cites)}</div>`).join("")}
+    <details class="moredetail" open><summary>Patterns I can see</summary>${(r.patterns||[]).map(p=>`<div class="tip"><b>${esc(p.pattern)}</b><p>${esc(p.evidence)}</p>${cites(p.cites)}</div>`).join("")}
+</details>
     <h3>Biggest things to fix</h3>${(r.top_risks||[]).map(p=>`<div class="tip bad"><b>${esc(p.risk)}</b><p>${esc(p.why)}</p><p><b>Do this:</b> ${esc(p.action)}</p>${cites(p.cites)}</div>`).join("")}
     <h3>Things you are doing well</h3>${(r.top_wins||[]).map(p=>`<div class="tip good"><b>${esc(p.win)}</b><p>${esc(p.why)}</p>${cites(p.cites)}</div>`).join("")}
-    ${r.swaps?.length?`<h3>Easy swaps</h3>${r.swaps.map(s=>`<div class="tip"><b>${esc(s.from)} → ${esc(s.to)}</b><p>${esc(s.why)}</p></div>`).join("")}`:""}
-    ${r.open_questions?.length?`<h3>Things worth finding out</h3><ul class="sub">${r.open_questions.map(q=>`<li>${esc(q)}</li>`).join("")}</ul>`:""}
+    ${r.swaps?.length?`<details class="moredetail"><summary>Easy swaps</summary>${r.swaps.map(s=>`<div class="tip"><b>${esc(s.from)} → ${esc(s.to)}</b><p>${esc(s.why)}</p></div>`).join("")}</details>`:""}
+    ${r.open_questions?.length?`<details class="moredetail"><summary>Things worth finding out</summary><ul class="sub">${r.open_questions.map(q=>`<li>${esc(q)}</li>`).join("")}</ul></details>`:""}
     ${r.test_recommendation?`<div class="tip"><b>Get this checked</b><p>${esc(r.test_recommendation)}</p></div>`:""}
-    ${r.limits?.length?`<h3>What this review cannot tell you</h3><ul class="sub">${r.limits.map(q=>`<li>${esc(q)}</li>`).join("")}</ul>`:""}
+    ${r.limits?.length?`<details class="moredetail"><summary>What this review cannot tell you</summary><ul class="sub">${r.limits.map(q=>`<li>${esc(q)}</li>`).join("")}</ul></details>`:""}
     <p class="disc">Written by an AI using the food list and health guidelines in this app. It is not a real dietitian and it cannot diagnose you.</p>
   </div>`;
 }
