@@ -235,6 +235,8 @@ const SRC = {
   VENTRICKLE:"Ventrickle × Munchi Pancakes, vendor-collaborated slice analysis (2024)",
   SHF:    "Singapore Heart Foundation 'Hearty' recipe — a MODIFIED healthier version, not a standard hawker product",
   USDA_SAT:"USDA FoodData Central saturated fat values, via FoodStruct/Wikipedia sourced infoboxes",
+  // REJECTED 2026-09-13: the Wikipedia shrimp infobox lists saturated fat 3.98 g against total
+  // fat 1.01 g. Saturated fat cannot exceed total fat, so that table is corrupted. Not used.
   FSA:    "UK Food Standards Agency front-of-pack thresholds: sugar ≤5 low, 5–22.5 medium, >22.5 high per 100g"
 };
 
@@ -247,6 +249,9 @@ function sBand(v){ if(v==null) return null; if(v<=5) return "low"; if(v<=22.5) r
 // Saturated fat bands, UK FSA front-of-pack thresholds for solid foods:
 // low <=1.5 g, medium 1.5-5 g, high >5 g per 100 g.
 function satBand(v){ if(v==null) return null; if(v<=1.5) return "low"; if(v<=5) return "med"; return "high"; }
+// Sodium bands, per 100 g. UK FSA front-of-pack salt limits converted to sodium:
+// low salt <=0.3 g  -> <=120 mg sodium ; high salt >1.5 g -> >600 mg sodium.
+function naBand(v){ if(v==null) return null; if(v<=120) return "low"; if(v<=600) return "med"; return "high"; }
 
 // flags: dried_seafood (confirmed) | dried_seafood_likely (conventional, unconfirmed) | shellfish | organ | alcohol | sweetened | dairy | egg | plant_protein
 const FOODS = [
@@ -289,8 +294,8 @@ const FOODS = [
   { id:"fish_paste", name:"Fish paste", cat:"fish", flags:[],
     purine:{v:68, src:SRC.KANEKO+" — fish ball, proxy", conf:65}, gi:{v:null}, sugar:{v:null}, chol:{v:null} },
   { id:"egg", base:"egg", variant:"whole", name:"Egg, whole", cat:"egg", flags:["egg"],
-    purine:{v:0, src:SRC.KANEKO, conf:90}, gi:{v:null}, sugar:{v:null},
-    chol:{v:null, note:"yolk 1085 mg/100g confirmed (USDA); whole-egg figure not confirmed this session"} },
+    purine:{v:0, src:SRC.KANEKO, conf:90}, gi:{v:null, note:"Very little carbohydrate, so GI is not meaningful"}, sugar:{v:null},
+    chol:{v:373, src:SRC.USDA+" — whole egg, FDC 173424", conf:85, note:"About 63 mg in one medium egg. There is no daily limit for dietary cholesterol any more."} },
   { id:"egg_yolk", base:"egg", variant:"yolk", name:"Egg, yolk only", cat:"egg", flags:["egg"],
     purine:{v:0, src:SRC.KANEKO+" — egg", conf:90}, gi:{v:null}, sugar:{v:null},
     chol:{v:1085, src:SRC.USDA, conf:80} },
@@ -426,6 +431,17 @@ const FOODS = [
     purine:{v:null, note:"may include dried shiitake (380); not measured"}, gi:{v:null}, sugar:{v:null}, chol:{v:null} },
 ];
 
+// ---------- SODIUM, mg per 100 g. null everywhere else = not sourced. ----------
+// UK FSA bands: <=120 low, 120-600 medium, >600 high.
+const SODIUM = {
+  white_rice:  { v:1,   src:SRC.USDA+" — white long-grain, cooked without salt", conf:85, note:"Cooked without salt. Hawker rice is usually salted or cooked in stock." },
+  salmon:      { v:44,  src:SRC.USDA+" — raw wild Atlantic", conf:80, note:null },
+  shrimp_fresh:{ v:566, src:SRC.USDA+" — raw mixed species", conf:70, note:"Naturally salty seafood, before any seasoning." },
+  coconut_milk:{ v:null, note:"Not found. Coconut meat is 20 mg/100 g, but milk is a different product." },
+  tau_pok:     { v:12,  src:SRC.USDA+" — dried tofu skin, nearest measured analogue", conf:50, note:"Tofu skin, not tau pok. Different product, same family." },
+  tempeh:      { v:2,   src:SRC.USDA+" — textured soy protein, nearest analogue", conf:40, note:"Not tempeh itself. Treat as indicative only." },
+};
+
 // ---------- SATURATED FAT, g per 100 g. null everywhere else = not sourced. ----------
 const SATFAT = {
   coconut_milk: { v:19.0, src:SRC.USDA_SAT+" — canned coconut milk, FDC 170173", conf:80, note:"Almost all of coconut fat is saturated. This is the biggest saturated-fat source in your log." },
@@ -436,6 +452,13 @@ const SATFAT = {
   almond: { v:3.8, src:SRC.USDA_SAT+" — almonds, raw", conf:70, note:null },
   tofu: { v:0.7, src:SRC.USDA_SAT+" — firm tofu", conf:60, note:null },
   white_rice: { v:0.1, src:SRC.USDA_SAT+" — cooked white rice", conf:70, note:null },
+  pork_shoulder: { v:5.2, src:SRC.USDA+" — pork loin, cooked broiled (nearest measured cut)", conf:60, note:"Loin, not shoulder. Shoulder is fattier, so the real figure is probably higher." },
+  pork_ribs: { v:5.2, src:SRC.USDA+" — pork loin, cooked broiled (nearest measured cut)", conf:50, note:"Ribs are fattier than loin, so this understates it." },
+  pork_neck: { v:5.2, src:SRC.USDA+" — pork loin, cooked broiled (nearest measured cut)", conf:50, note:"Loin, not neck." },
+  tau_pok: { v:5.0, src:SRC.USDA+" — dried tofu skin", conf:50, note:"Tofu skin, not tau pok, and tau pok is deep-fried on top of that." },
+  egg: { v:3.3, src:SRC.USDA+" — whole egg, FDC 173424", conf:80, note:null },
+  egg_yolk: { v:9.6, src:SRC.USDA+" — egg yolk", conf:70, note:"One yolk is about 17 g, not 100 g." },
+  granola: { v:2.5, src:SRC.PANEL+" — from the pack photographed", conf:60, note:null },
 };
 
 // ---------- NUTRIENTS (per 100 g unless stated). null = not sourced. ----------
@@ -455,6 +478,7 @@ const NUTRI = {
 FOODS.forEach(f=>{
   f.n = NUTRI[f.id] || {};
   f.satfat = SATFAT[f.id] || { v:null };
+  f.sodium = SODIUM[f.id] || { v:null };
 });
 
 FOODS.forEach(f=>{
@@ -463,6 +487,7 @@ FOODS.forEach(f=>{
   if(f.id==="nasi_lemak") f.gi.band="high"; // HPB classification
   f.sugar.band = sBand(f.sugar.v);
   if(f.satfat) f.satfat.band = satBand(f.satfat.v);
+  if(f.sodium) f.sodium.band = naBand(f.sodium.v);
 });
 
 // GUIDELINE THRESHOLDS — each with source. null = no guideline threshold exists.
@@ -472,6 +497,7 @@ const GUIDE = {
   free_sugar_g: { ideal:25, max:50, src:"WHO 2015 free sugars guideline: <10% energy (≈50g at 2000 kcal), ideally <5% (≈25g)" },
   cholesterol_mg: { v:null, src:"Dietary Guidelines for Americans 2015–2020 removed the 300 mg/day limit; 2020–2025 advises 'as low as possible without compromising nutritional adequacy'. No hard threshold exists.", legacy:300 },
   satfat_g: { max:22, src:"WHO and AHA: keep saturated fat under 10% of daily energy. At 2000 kcal that is about 22 g a day. AHA suggests under 6% (about 13 g) for people who need to lower LDL cholesterol.", note:"Cannot be totalled here — no meal was weighed." },
+  sodium_bands: { src:"UK Food Standards Agency front-of-pack limits, converted from salt to sodium: 120 mg or less per 100 g is low, over 600 mg per 100 g is high." },
   satfat_bands: { src:"UK Food Standards Agency front-of-pack limits: 1.5 g or less per 100 g is low, over 5 g per 100 g is high." },
   alcohol: { src:"Choi HK et al. Lancet 2004;363:1277–81 — beer strongest gout association; ACR 2020 conditionally recommends limiting alcohol" },
   gi_daily: { v:null, src:"No daily GI threshold exists in any guideline. Pattern flags only." }
@@ -530,7 +556,7 @@ const SEED_MEALS = [
 // MEALTREND — app logic
 // Version stamp convention: vYYYY:MMM:DD-HH:MM (Asia/Singapore)
 // ============================================================
-const VERSION = "v2026:SEP:11-09:30"; // HH:MM approximate — device clock unavailable; set on first edit
+const VERSION = "v2026:SEP:13-11:00"; // HH:MM approximate — device clock unavailable; set on first edit
 
 const LS_KEY = "mealtrend.v1";
 const BANDS = {
@@ -538,6 +564,7 @@ const BANDS = {
   gi:     { low:{l:"Slow",c:"#3E7A4E"}, med:{l:"Medium",c:"#A6741A"}, high:{l:"Fast",c:"#C8402F"} },
   sugar:  { low:{l:"Low",c:"#3E7A4E"}, med:{l:"Medium",c:"#A6741A"}, high:{l:"High",c:"#C8402F"} },
   satfat: { low:{l:"Low",c:"#3E7A4E"}, med:{l:"Medium",c:"#A6741A"}, high:{l:"High",c:"#C8402F"} },
+  sodium: { low:{l:"Low",c:"#3E7A4E"}, med:{l:"Medium",c:"#A6741A"}, high:{l:"High",c:"#C8402F"} },
   rating: { vlow:{l:"Very safe",c:"#1E4F45"}, low:{l:"Fine",c:"#3E7A4E"}, moderate:{l:"Watch this",c:"#A6741A"}, high:{l:"Be careful",c:"#C8402F"} }
 };
 const RANK = { vlow:0, low:1, moderate:2, mod:2, high:3, vhigh:4 };
@@ -666,13 +693,22 @@ function scoreSatfat(items){
 }
 
 function scoreSodium(items, m){
-  // The food library has NO sodium figures. Saying anything else would be inventing data.
-  const salty = items.filter(f=>["gravy","curry","sauce","broth","dried seafood"].includes(f.cat));
-  const why = ["No food in this app has a measured sodium number yet."];
-  if(salty.length) why.push(`${salty.slice(0,3).map(f=>f.name).join(", ")} are usually salty, but that is a guess, not a measurement.`);
-  if(m.liquid!=="none") why.push("Drinking the soup or gravy is where most hawker sodium comes from.");
-  why.push("Ask the AI dietitian — it can look up a figure for the dish.");
-  return { rating:null, why, coverage:{measured:0,total:items.length,unknown:items.length} };
+  const withNa = items.filter(f=>f.sodium && f.sodium.v!=null);
+  const salty = items.filter(f=>(!f.sodium||f.sodium.v==null) && ["gravy","curry","sauce","broth","dried seafood"].includes(f.cat));
+  if(!withNa.length){
+    const why=["None of these foods has a measured sodium number yet."];
+    if(salty.length) why.push(`${salty.slice(0,3).map(f=>f.name).join(", ")} are usually salty, but that is a guess, not a measurement.`);
+    if(m.liquid!=="none") why.push("Drinking the soup or gravy is where most hawker salt comes from.");
+    why.push("Ask the AI dietitian — it can look up a figure for the dish.");
+    return { rating:null, why, coverage:{measured:0,total:items.length,unknown:items.length} };
+  }
+  const worst = withNa.reduce((w,f)=>{ const r={low:1,med:2,high:3}[f.sodium.band]||0; return r>w.r?{r,f}:w; },{r:0,f:null});
+  const why=[`${worst.f.name} is ${worst.f.sodium.v} mg per 100 g — ${({low:"low",med:"medium",high:"high"})[worst.f.sodium.band]}.`];
+  why.push("A whole day should stay under 2,000 mg. Nothing here was weighed, so this is the saltiest single food, not the plate total.");
+  if(salty.length) why.push(`No number for ${salty.slice(0,2).map(f=>f.name).join(", ")}, which usually add a lot more.`);
+  if(m.liquid!=="none") why.push("You drank the liquid, which is where most of the salt sits.");
+  return { rating:{1:"low",2:"moderate",3:"high"}[worst.r]||"low", why,
+           coverage:{measured:withNa.length,total:items.length,unknown:salty.length} };
 }
 
 function scoreMeal(m){
@@ -966,6 +1002,17 @@ function viewAlerts(){
 
 function viewLibrary(){
   return `<p class="sub">${FOODS.length} foods. Every number says where it came from and how sure we are. <b>"No data" means nobody has measured it. The app never makes a number up.</b></p>
+  ${(()=>{const n=FOODS.length,c=f=>FOODS.filter(f).length;
+    const rows=[["Purine",c(x=>x.purine.v!=null),"One study measured 270 foods in one go, so coverage is good."],
+                ["Blood sugar",c(x=>x.gi.v!=null),"Only exists for foods someone fed to volunteers in a clinical test. Most dishes never have been."],
+                ["Cholesterol",c(x=>x.chol.v!=null),"Widely published for animal foods. Plant foods are zero by definition."],
+                ["Saturated fat",c(x=>x.satfat.v!=null),"Has to be looked up food by food. Still thin."],
+                ["Salt",c(x=>x.sodium.v!=null),"Thinnest of all. Hawker dishes vary hugely by stall, so a published figure means less here."]];
+    return `<h3>Why some axes say "No data"</h3><p class="sub">Coverage is uneven because each axis comes from a different kind of source.</p>
+    <div class="chart">${rows.map(([k,v,note])=>`<div class="bar"><div class="bl">${k}<span class="bsub">${note}</span></div>
+      <div class="bt"><i style="width:${Math.max(2,100*v/n).toFixed(0)}%;background:${v/n>0.5?"#3E7A4E":v/n>0.2?"#A6741A":"#C8402F"}"></i></div>
+      <div class="bv">${v}/${n}<span class="bc">${Math.round(100*v/n)}%</span></div></div>`).join("")}</div>
+    <p class="sub">When an axis is empty for a meal, the AI dietitian can search for a figure and show you the source. That is the fastest way to fill a gap.</p>`;})()}
   <input class="search" placeholder="Search foods" oninput="filterLib(this.value)">
   <div id="lib">${libRows(FOODS)}</div>`;
 }
@@ -1026,7 +1073,7 @@ function renderModal(){
     <div class="verdict">
       ${(()=>{const S=scoreMeal(ADD);const AX={purine:"Purine",gi:"Blood sugar",satfat:"Saturated fat",sodium:"Salt"};
         return `<div class="overallrow"><b>Overall</b> ${chip(S.overall,'rating')}
-          <span class="from">${S.scoredCount?`Set by the worst of the ${S.scoredCount} ${S.scoredCount===1?"axis":"axes"} we have numbers for${S.worstAxis?`: ${AX[S.worstAxis].toLowerCase()}`:""}.`:"Nothing here has numbers on any axis."}${S.missing.length?` No data for ${S.missing.map(k=>AX[k].toLowerCase()).join(", ")}.`:""}</span></div>
+          <span class="from">${S.scoredCount?`Set by the worst of the ${S.scoredCount} ${S.scoredCount===1?"axis":"axes"} we have numbers for${S.worstAxis?`: ${AX[S.worstAxis].toLowerCase()}`:""}.`:"Nothing here has numbers on any axis."}${S.missing.length?` No numbers yet for ${S.missing.map(k=>AX[k].toLowerCase()).join(", ")} — that is a gap in the food list, not a clean bill of health.`:""}</span></div>
         <div class="axes">${Object.entries(S.axes).map(([k,v])=>`
           <details class="axis">
             <summary><span class="axname">${AX[k]}</span> ${v.rating?chip(v.rating,'rating'):'<span class="status s-none">No data</span>'}</summary>
