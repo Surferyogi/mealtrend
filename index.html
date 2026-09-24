@@ -147,6 +147,9 @@
   .tag b{margin-left:8px;cursor:pointer;color:var(--chilli);font-size:19px}
   .verdict{background:var(--card);border:2px solid var(--ink);border-radius:12px;padding:16px;margin:18px 0}
   .verdict ul{margin:10px 0 0;padding-left:22px;color:var(--ink2);font-size:16px}
+  .notscored{background:var(--turmeric-bg);border:2px solid var(--turmeric);border-radius:10px;padding:16px}
+  .notscored b{font-size:19px;display:block;margin-bottom:6px}
+  .notscored p{margin:0;font-size:16px;color:var(--ink2)}
   .overallrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding-bottom:14px;border-bottom:2px solid var(--line)}
   .overallrow b{font-size:18px}
   .overallrow .from{flex-basis:100%;margin:0}
@@ -247,6 +250,7 @@ const SRC = {
   SNAPCAL:"SnapCalorie.com — aggregator estimate, methodology undisclosed",
   VENTRICKLE:"Ventrickle × Munchi Pancakes, vendor-collaborated slice analysis (2024)",
   SHF:    "Singapore Heart Foundation 'Hearty' recipe — a MODIFIED healthier version, not a standard hawker product",
+  FISHBASE:"FishBase species record, Selaroides leptolepis (yellowstripe scad), nutrient study ref 124155",
   USDA_SAT:"USDA FoodData Central saturated fat values, via FoodStruct/Wikipedia sourced infoboxes",
   // REJECTED 2026-09-13: the Wikipedia shrimp infobox lists saturated fat 3.98 g against total
   // fat 1.01 g. Saturated fat cannot exceed total fat, so that table is corrupted. Not used.
@@ -304,6 +308,19 @@ const FOODS = [
     purine:{v:71, src:SRC.KANEKO, conf:80}, gi:{v:null}, sugar:{v:null}, chol:{v:null} },
   { id:"pork_lard", name:"Pork lard", cat:"fat", flags:[],
     purine:{v:null, note:"rendered fat — purines sit in protein-rich tissue; not measured"}, gi:{v:null}, sugar:{v:null}, chol:{v:null, note:"not retrieved"} },
+  { id:"ikan_kuning", name:"Ikan kuning, fried whole", cat:"fish", flags:[],
+    purine:{v:null, note:"NOT MEASURED. Yellowstripe scad (Selaroides leptolepis) is not in Kaneko. Nearest measured relative is sardine at 210 mg/100 g — also a small oily fish eaten whole, bones and skin included. Eating the whole fish means eating more cell-dense tissue than a fillet, so treat this as moderate-to-high until someone measures it."},
+    gi:{v:null, note:"Protein and fat, essentially no carbohydrate, so GI does not apply"},
+    sugar:{v:null},
+    chol:{v:null, note:"Not found for this species"},
+    protein:{v:19.9, src:SRC.FISHBASE, conf:70} },
+  { id:"fish_fried_whole", name:"Fried whole small fish", cat:"fish", flags:[],
+    purine:{v:null, note:"NOT MEASURED as a dish. Small whole oily fish sit near sardine (210 mg/100 g) in Kaneko, and eating head, bones and skin raises it further."},
+    gi:{v:null}, sugar:{v:null}, chol:{v:null} },
+  { id:"frying_oil", name:"Deep-frying oil absorbed", cat:"fat", flags:[],
+    purine:{v:0, src:"Oil has no cell nuclei, so no purine", conf:85},
+    gi:{v:null}, sugar:{v:null}, chol:{v:null,
+    note:"Depends entirely on the oil. Palm oil is about 49 g saturated fat per 100 g; most hawker stalls use palm or a palm blend. Figure not retrieved for this session."} },
   { id:"fish_paste", name:"Fish paste", cat:"fish", flags:[],
     purine:{v:68, src:SRC.KANEKO+" — fish ball, proxy", conf:65}, gi:{v:null}, sugar:{v:null}, chol:{v:null} },
   { id:"egg", base:"egg", variant:"whole", name:"Egg, whole", cat:"egg", flags:["egg"],
@@ -569,7 +586,7 @@ const SEED_MEALS = [
 // MEALTREND — app logic
 // Version stamp convention: vYYYY:MMM:DD-HH:MM (Asia/Singapore)
 // ============================================================
-const VERSION = "v2026:SEP:14-21:10"; // HH:MM approximate — device clock unavailable; set on first edit
+const VERSION = "v2026:SEP:15-03:50"; // HH:MM approximate — device clock unavailable; set on first edit
 
 const LS_KEY = "mealtrend.v1";
 const BANDS = {
@@ -629,6 +646,16 @@ function rateMeal(m){
       ? `Everything here is measured low in purine or is a plain fruit, vegetable or drink. No soup or gravy.`
       : `Every item here has a measured purine number and they are all low. No soup or gravy.`;
     return { rating:"vlow", why:[line], coverage };
+  }
+
+  // Animal flesh ALWAYS contains purine — that is a fact about cells, not a guess. If there is no
+  // number for a meat or fish, the meal cannot score below "Watch this". Only whole plants get the
+  // benefit of the doubt, because their composition genuinely justifies it.
+  const FLESH = ["fish","seafood","poultry","pork","beef","meat","organ","dried seafood"];
+  const unknownFlesh = unknown.filter(f=>FLESH.includes(f.cat));
+  if(unknownFlesh.length){
+    rank = Math.max(rank, 2);
+    why.push(`${unknownFlesh.slice(0,2).map(f=>f.name).join(", ")} is animal flesh with no measured purine number. All meat and fish contain purine, so this cannot score better than "Watch this" until someone measures it.`);
   }
 
   // Missing data must never produce a safety claim.
@@ -726,6 +753,14 @@ function scoreSodium(items, m){
 
 function scoreMeal(m){
   const items = m.items.map(id=>FOOD[id]).filter(Boolean);
+  const unmapped = (m.unmapped||[]);
+  // Nothing to go on is not a score. "Fine" on an empty plate is the app reassuring you about
+  // a meal it knows nothing about.
+  if(!items.length && !unmapped.length){
+    return { overall:null, worstAxis:null, missing:["purine","gi","satfat","sodium"], scoredCount:0,
+      unscored:true, axes:Object.fromEntries(["purine","gi","satfat","sodium"].map(k=>[k,
+        {rating:null, why:["No foods have been added to this meal yet."], coverage:{measured:0,total:0,unknown:0}}])) };
+  }
   const p = rateMeal(m);
   const axes = {
     purine: { rating:p.rating, why:p.why, coverage:p.coverage },
@@ -743,7 +778,8 @@ function scoreMeal(m){
 function analyse(meals){
   const n = meals.length;
   const byRating = {vlow:0,low:0,moderate:0,high:0};
-  meals.forEach(m=>byRating[m.rating]++);
+  const unscored = meals.filter(m=>!m.rating).length;
+  meals.forEach(m=>{ if(m.rating) byRating[m.rating]++; });
   const liquid = meals.filter(m=>m.liquid!=="none");
   const dry = meals.filter(m=>m.liquid==="none");
   const liquidElevated = liquid.filter(m=>RANK[m.rating]>=2).length;
@@ -767,7 +803,7 @@ function analyse(meals){
   const driedSea = meals.filter(m=>m.items.some(id=>FOOD[id]?.flags?.includes("dried_seafood"))).length;
   const alcohol = meals.filter(m=>m.items.some(id=>FOOD[id]?.flags?.includes("alcohol"))).length;
   const organ = meals.filter(m=>m.items.some(id=>FOOD[id]?.flags?.includes("organ"))).length;
-  return { n, byRating, liquid:liquid.length, dry:dry.length, liquidElevated, dryLow, dryNoSea:dryNoSea.length, dryNoSeaLow, satHigh, coconut, gravy, clear, checked, highGI, starch, sweet, dairy, egg, plant, driedSea, alcohol, organ, catCount };
+  return { n, byRating, unscored, liquid:liquid.length, dry:dry.length, liquidElevated, dryLow, dryNoSea:dryNoSea.length, dryNoSeaLow, satHigh, coconut, gravy, clear, checked, highGI, starch, sweet, dairy, egg, plant, driedSea, alcohol, organ, catCount };
 }
 
 // ---------- ALERTS ----------
@@ -871,14 +907,15 @@ function val(x,unit=""){ return x==null?`<span class="nodata">No data</span>`:`<
 function viewDashboard(){
   const A=analyse(STATE.meals); const al=alerts(STATE.meals);
   const reds=al.filter(a=>a.lvl==="red").length, ambers=al.filter(a=>a.lvl==="amber").length;
-  const okPct=Math.round(100*(A.byRating.vlow+A.byRating.low)/Math.max(1,A.n));
+  const scoredN=A.n-A.unscored;
+  const okPct=scoredN?Math.round(100*(A.byRating.vlow+A.byRating.low)/scoredN):0;
   const head = reds ? "Something needs your attention"
              : okPct>=70 ? "Most of your meals look fine"
              : "A few meals need watching";
   return `
   <div class="answer">
     <p class="big">${head}</p>
-    <p><b>${okPct}%</b> of your ${A.n} meals came out fine or very safe. ${reds?`<b>${reds}</b> ${reds===1?"meal needs":"meals need"} a closer look.`:"Nothing is flagged red right now."}</p>
+    <p><b>${okPct}%</b> of your ${scoredN} scored ${scoredN===1?"meal":"meals"} came out fine or very safe.${A.unscored?` <b>${A.unscored}</b> ${A.unscored===1?"meal has":"meals have"} no foods added and cannot be scored.`:""} ${reds?`<b>${reds}</b> ${reds===1?"meal needs":"meals need"} a closer look.`:"Nothing is flagged red right now."}</p>
   </div>
   <div class="facts">
     <button class="fact tap" onclick="goMeals('dry')"><span class="n good">${A.dryNoSeaLow}/${A.dryNoSea}</span><p>Meals cooked dry, with no dried seafood, that came out fine — tap to see them</p></button>
@@ -913,7 +950,7 @@ function viewLog(){
   return head+`<div>${meals.map(m=>`<div class="meal e-${m.rating}" onclick="openMeal('${m.id}')">
     <p class="title">${esc(m.label)}</p>
     <p class="when">${m.date||'Date not recorded'} · ${m.slot}${m.liquid!=="none"?` · you drank the ${m.liquid==="gravy"?"gravy":"soup"}`:""}${m.checked?` · you checked the ingredients`:""}</p>
-    ${chip(m.rating,'rating')}
+    ${(m.items&&m.items.length)||(m.unmapped&&m.unmapped.length)?chip(m.rating,'rating'):'<span class="status s-none">Not scored — no foods added</span>'}
     ${m.note?`<p class="note">${esc(m.note)}</p>`:''}
     ${m.ai&&!m.ai.error?`<p class="note fromai">${esc(m.ai.overall||"")}</p>`:''}
     ${m.thumb?`<img src="data:image/jpeg;base64,${m.thumb}" alt="">`:''}
@@ -1087,6 +1124,9 @@ function renderModal(){
     <label>Your own notes<textarea oninput="ADD.note=this.value">${esc(ADD.note||'')}</textarea></label>
     <div class="verdict">
       ${(()=>{const S=scoreMeal(ADD);const AX={purine:"Purine",gi:"Blood sugar",satfat:"Saturated fat",sodium:"Salt"};
+        if(S.unscored) return `<div class="notscored"><b>Not scored yet</b>
+          <p>Add the foods below, or tap <b>Ask the AI dietitian</b> to identify them from the photo.
+          Until then this meal has no score — an empty plate is not a safe one.</p></div>`;
         return `<div class="overallrow"><b>Overall</b> ${chip(S.overall,'rating')}
           <span class="from">${S.scoredCount?`Set by the worst of the ${S.scoredCount} ${S.scoredCount===1?"axis":"axes"} we have numbers for${S.worstAxis?`: ${AX[S.worstAxis].toLowerCase()}`:""}.`:"Nothing here has numbers on any axis."}${S.missing.length?` No numbers yet for ${S.missing.map(k=>AX[k].toLowerCase()).join(", ")} — that is a gap in the food list, not a clean bill of health.`:""}</span></div>
         <div class="axes">${Object.entries(S.axes).map(([k,v])=>`
@@ -1103,7 +1143,10 @@ function renderModal(){
 }
 function pickList(q){ q=q.toLowerCase(); if(!q){$("#pick").innerHTML="";return;} const hits=FOODS.filter(f=>f.name.toLowerCase().includes(q)&&!ADD.items.includes(f.id)).slice(0,8);
   $("#pick").innerHTML=hits.map(f=>`<div class="hit" onclick="ADD.items.push('${f.id}');renderModal()">${esc(f.name)} <span class="cat">${esc(f.cat)}</span></div>`).join(""); }
-function saveMeal(){ if(!ADD.label.trim()){alert("Please say what you ate first.");return;} const r=rateMeal(ADD); ADD.rating=r.rating; delete ADD.source;
+function saveMeal(){ if(!ADD.label.trim()){alert("Please say what you ate first.");return;}
+  const S=scoreMeal(ADD); const r=rateMeal(ADD);
+  ADD.rating = S.unscored ? null : r.rating;
+  if(S.unscored && !confirm("No foods were added, so this meal cannot be scored. Save it anyway?")) return; delete ADD.source;
   const i=STATE.meals.findIndex(x=>x.id===ADD.id); if(i>=0) STATE.meals[i]=ADD; else STATE.meals.push(ADD); save(); closeModal(); route(); }
 function delMeal(){ if(!confirm("Delete this meal for good?")) return; STATE.meals=STATE.meals.filter(x=>x.id!==ADD.id); save(); closeModal(); route(); }
 function closeModal(){ $("#modal").classList.remove("open"); $("#modal").innerHTML=""; }
@@ -1183,6 +1226,14 @@ NON-NEGOTIABLE RULES
 3. Never compute a daily purine total in mg. No meal has a weighed portion.
 4. Dietary cholesterol has NO guideline threshold (removed from US Dietary Guidelines 2015). Rank and note it; never alarm on it. Saturated fat and sodium DO have thresholds and matter more for heart risk — use them: [GUIDE:satfat] and [GUIDE:sodium]. If a dish contains coconut milk, pork lard, deep-fried batter or ghee, say so and give the saturated fat figure if you have one. Only 8 foods in the library carry a measured saturated fat value; web_search for the rest rather than guessing.
 5. Do not diagnose. The podagra episode was never clinically confirmed. When relevant, say a serum urate test outranks any dietary inference.
+5b. LOCAL FISH AND DISH NAMES. Name the specific Singapore/Malay food when you can see it, not just
+   the category. "Ikan kuning" (yellowstripe scad, Selaroides leptolepis) is a small yellow-striped
+   fish fried whole and eaten bones and all — map it to [ikan_kuning], not to a generic fillet.
+   Others worth naming: ikan bilis (dried anchovy), ikan selar, ikan kembong (Indian mackerel),
+   ikan pari (stingray), sotong (squid), see hum (cockles), tau kwa, tau pok, chye sim, kang kong.
+   If a small whole fish is fried but you cannot identify the species, use [fish_fried_whole] and
+   say which species you think it is in the item name.
+   A deep-fried dish should also get [frying_oil] added, because the absorbed oil is real.
 6. Singapore hawker and home dishes vary by stall and kitchen. When an ingredient is conventional but unconfirmed (e.g. hae bee in laksa rempah, belacan in sambal, conpoy in a double-boiled soup), DO NOT assume it. State it as unconfirmed and put a specific question in "questions_to_ask". This user's answers to such questions have lowered the rating 4 times out of 4.
 7. Purine rating logic, in order: highest purine band among items → confirmed dried seafood or organ meat forces at least High → a gravy conventionally containing dried seafood (unconfirmed) forces at least Moderate → concentrated liquid or gravy consumed forces at least Moderate → clear gently-simmered stock: rating follows the solids → dry-cooked with no dried seafood: cap at Low unless a High-band item is present.
 8. Glycaemic reasoning: GI is per reference food; composite hawker dishes rarely have a tested value. Composition matters more than substitution — in one Singapore study plain white rice measured 96 and the same rice with oil, chicken and vegetables measured 50 [white_rice][rice_oil_chicken_veg]. Say so when the plate has protein/fat/vegetables alongside starch.
@@ -1251,20 +1302,24 @@ ${this.libraryText()}`;
 
   // Extract the first complete JSON object by brace matching (string-aware).
   // Fence-stripping alone fails when the response is truncated or has trailing prose.
-  async raw(body, timeoutMs, userCtl){
-    // The timeout gets its OWN controller. Aborting the shared user-cancel controller made every
-    // timeout look identical to the user pressing Stop, which killed the retry ladder dead.
+  // Streams the reply. The timeout is now an IDLE timer: it fires only when NOTHING has arrived
+  // for that long. A slow answer is not a dead one — the old wall-clock timeout was killing
+  // requests that were generating perfectly well, because 3000 tokens of JSON takes longer than
+  // 45 seconds to write.
+  async raw(body, idleMs, userCtl, onTick){
     const ctl = new AbortController();
     const onUserAbort = ()=>ctl.abort();
     if(userCtl) userCtl.signal.addEventListener("abort", onUserAbort);
-    let timedOut=false;
-    const t=setTimeout(()=>{ timedOut=true; ctl.abort(); }, timeoutMs||90000);
+    const IDLE = idleMs || 30000;
+    let timedOut=false, timer=null, bytes=0;
+    const arm = ()=>{ clearTimeout(timer); timer=setTimeout(()=>{ timedOut=true; ctl.abort(); }, IDLE); };
+    arm();
     try{
       const res = await fetch("https://api.anthropic.com/v1/messages",{
         method:"POST", signal:ctl.signal,
         headers:{ "content-type":"application/json", "x-api-key":this.key(),
                   "anthropic-version":"2023-06-01", "anthropic-dangerous-direct-browser-access":"true" },
-        body: JSON.stringify(body)
+        body: JSON.stringify({...body, stream:true})
       });
       if(!res.ok){
         const txt=await res.text();
@@ -1272,18 +1327,50 @@ ${this.libraryText()}`;
         e.kind = res.status===401 ? "key" : res.status===429 ? "rate" : res.status>=500 ? "server" : "api";
         throw e;
       }
-      return await res.json();
+      const reader = res.body.getReader();
+      const dec = new TextDecoder();
+      let buf="", text="", stop=null, usage=null;
+      const searches=[];
+      for(;;){
+        const {done, value} = await reader.read();
+        if(done) break;
+        arm();                                   // something arrived: the connection is alive
+        bytes += value.length;
+        if(onTick) onTick(bytes, text.length);
+        buf += dec.decode(value, {stream:true});
+        let nl;
+        while((nl = buf.indexOf("\n")) >= 0){
+          const line = buf.slice(0, nl).trim(); buf = buf.slice(nl+1);
+          if(!line.startsWith("data:")) continue;
+          const payload = line.slice(5).trim();
+          if(payload === "[DONE]") continue;
+          let ev; try{ ev = JSON.parse(payload); }catch(e){ continue; }
+          if(ev.type==="content_block_delta" && ev.delta){
+            if(ev.delta.type==="text_delta") text += ev.delta.text || "";
+          }else if(ev.type==="content_block_start" && ev.content_block){
+            const cb=ev.content_block;
+            if(cb.type==="server_tool_use" && cb.name==="web_search" && cb.input && cb.input.query) searches.push(cb.input.query);
+          }else if(ev.type==="message_delta"){
+            if(ev.delta && ev.delta.stop_reason) stop = ev.delta.stop_reason;
+            if(ev.usage) usage = ev.usage;
+          }else if(ev.type==="error"){
+            const e=new Error((ev.error && ev.error.message) || "The API reported an error mid-reply.");
+            e.kind="api"; throw e;
+          }
+        }
+      }
+      return { __streamed:true, text, stop_reason:stop, usage, searches };
     }catch(e){
       if(e.name==="AbortError"){
         if(userCtl && userCtl.signal.aborted){ const x=new Error("Cancelled."); x.kind="cancelled"; throw x; }
-        const x=new Error(`No reply within ${Math.round((timeoutMs||90000)/1000)} seconds.`);
+        const x=new Error(`Nothing arrived for ${Math.round(IDLE/1000)} seconds.`);
         x.kind="timeout"; throw x;
       }
       if(e.kind) throw e;
       const x=new Error("Could not reach the internet, or the request was too big to send.");
       x.kind="network"; throw x;
     }finally{
-      clearTimeout(t);
+      clearTimeout(timer);
       if(userCtl) userCtl.signal.removeEventListener("abort", onUserAbort);
     }
   },
@@ -1302,6 +1389,10 @@ ${this.libraryText()}`;
   },
 
   parse(data){
+    if(data.__streamed){
+      return { text:data.text||"", searches:data.searches||[],
+               truncated:data.stop_reason==="max_tokens", usage:data.usage };
+    }
     const blocks=data.content||[];
     const text=blocks.filter(b=>b.type==="text").map(b=>b.text).join("\n");
     const searches=blocks.filter(b=>b.type==="server_tool_use"&&b.name==="web_search").map(b=>b.input&&b.input.query).filter(Boolean);
@@ -1315,9 +1406,10 @@ ${this.libraryText()}`;
     const on = opts.onProgress || (()=>{});
     const useSearch = !!(STATE.settings||{}).useSearch;
     const plan = [
-      { label:"full",        search:useSearch, keepImage:true,  tokens:maxTokens||3000, timeout:45000 },
+      // These are IDLE limits — how long with nothing at all arriving before we give up.
+      { label:"full",        search:useSearch, keepImage:true,  tokens:maxTokens||3000, timeout:40000 },
       { label:"no search",   search:false,     keepImage:true,  tokens:maxTokens||3000, timeout:30000 },
-      { label:"text only",   search:false,     keepImage:false, tokens:2000,            timeout:20000 },
+      { label:"text only",   search:false,     keepImage:false, tokens:2000,            timeout:25000 },
     ];
     let lastErr=null; const tried=[];
     for(const step of plan){
@@ -1332,13 +1424,13 @@ ${this.libraryText()}`;
       if(step.search) body.tools=[{ type:"web_search_20250305", name:"web_search", max_uses:3 }];
       on(step.label, step.timeout);
       try{
-        const data = await this.raw(body, step.timeout, opts.ctl);
+        const data = await this.raw(body, step.timeout, opts.ctl, opts.onTick);
         const r = this.parse(data);
         let json = this.extractJSON(r.text);
         if(!json && r.truncated){
           // cut off mid-object: ask again, tersely
           const terse=[...content, {type:"text", text:"Your last reply was cut off before the JSON closed. Reply again with the same schema, every string under 20 words, arrays of at most 3. JSON object only."}];
-          const d2 = await this.raw({...body, max_tokens: step.tokens+1500, messages:[{role:"user", content:terse}]}, step.timeout, opts.ctl);
+          const d2 = await this.raw({...body, max_tokens: step.tokens+1500, messages:[{role:"user", content:terse}]}, step.timeout, opts.ctl, opts.onTick);
           const r2 = this.parse(d2);
           json = this.extractJSON(r2.text);
           if(json) return { json, raw:r2.text, usage:r2.usage, searches:r2.searches, degraded: step.label!=="full" ? step.label : null, tried };
@@ -1501,6 +1593,7 @@ async function runMealAI(){
     const r=await AI.analyseMeal(ADD, PENDING_IMG, "image/jpeg",
       { ctl:AI_CTL,
         onProgress:(l)=>{ leg=l; aiBusy(l,secs); stepSet(l,"run","Waiting for a reply"); },
+        onTick:(bytes,chars)=>stepSet(leg,"run",`Reply arriving — ${chars.toLocaleString()} characters so far`),
         onStepFail:(l,e)=>stepSet(l,"fail", aiErrorHelp(e)) });
     stepSet(r.degraded||"full","done","Got an answer");
     ["full","no search","text only"].forEach(k=>{ const x=AI_STEPS.find(y=>y.k===k); if(x&&x.s==="wait") stepSet(k,"skip","Not needed, the step before it worked"); });
@@ -1639,7 +1732,7 @@ function aiErrorHelp(e){
   if(k==="key")     return "Your API key was rejected. Check it in Settings — it should start with sk-ant-.";
   if(k==="rate")    return "Anthropic is rate-limiting your key. Wait a minute and try again.";
   if(k==="server")  return "Anthropic's server had a problem. Try again in a moment.";
-  if(k==="timeout") return "No reply in time. The app tries again automatically with less: first without web search, then without the photo.";
+  if(k==="timeout") return "The connection went quiet mid-reply. The app tries again automatically with less: first without web search, then without the photo.";
   if(k==="network") return "The request never reached Anthropic. On an iPhone the usual cause is Safari blocking cross-site requests: open the Settings app, go to Apps then Safari, and turn OFF Prevent Cross-Site Tracking, then reload this page. A VPN, a content blocker or Lockdown Mode will also do it.";
   if(k==="cancelled") return "You stopped it.";
   if(k==="format")  return "The AI replied in a format the app could not read. Try again.";
