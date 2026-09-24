@@ -168,6 +168,19 @@
   details.moredetail>summary::after{content:"+";margin-left:auto;font-size:22px;color:var(--ink2)}
   details.moredetail[open]>summary::after{content:"−"}
   details.moredetail h3{margin-top:14px}
+  .steps{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:14px 0}
+  .stepshead{display:block;font-size:16px;margin-bottom:10px}
+  .step{display:grid;grid-template-columns:1fr auto;gap:2px 12px;padding:11px 0;border-bottom:1px solid var(--line)}
+  .step:last-child{border-bottom:0}
+  .sname{font-size:16px;font-weight:600}
+  .sstate{font-size:14px;font-weight:700;text-align:right;white-space:nowrap}
+  .smsg{grid-column:1/-1;font-size:14.5px;color:var(--ink2)}
+  .step.done .sstate{color:var(--pandan)}
+  .step.fail .sstate{color:var(--chilli)}
+  .step.fail .sname{color:var(--chilli)}
+  .step.run  .sstate{color:var(--turmeric)}
+  .step.wait .sname,.step.wait .sstate,.step.skip .sname,.step.skip .sstate{color:var(--ink2);font-weight:500}
+  .step.fail{background:var(--chilli-bg);margin:0 -16px;padding:11px 16px;border-radius:8px}
   .sheetbtns{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
   .ai{background:var(--pandan-bg);border:2px solid var(--pandan);border-radius:12px;padding:20px;margin:16px 0}
   .ai.failed{background:var(--chilli-bg);border-color:var(--chilli)}
@@ -556,7 +569,7 @@ const SEED_MEALS = [
 // MEALTREND — app logic
 // Version stamp convention: vYYYY:MMM:DD-HH:MM (Asia/Singapore)
 // ============================================================
-const VERSION = "v2026:SEP:13-11:00"; // HH:MM approximate — device clock unavailable; set on first edit
+const VERSION = "v2026:SEP:14-21:10"; // HH:MM approximate — device clock unavailable; set on first edit
 
 const LS_KEY = "mealtrend.v1";
 const BANDS = {
@@ -1063,6 +1076,8 @@ function renderModal(){
     ${ADD.thumb?`<img class="thumb" src="data:image/jpeg;base64,${ADD.thumb}" alt="">`:""}
     <button id="aiBtn" class="btn primary" onclick="runMealAI()" ${AI.ready()?"":"disabled title='Add API key under More → AI'"}>${ADD.ai?"Ask again":"Ask the AI dietitian"}${PENDING_IMG?" about this photo":""}</button>
     <button id="aiCancel" class="btn warn" style="display:none" onclick="stopAI()">Stop</button>
+    <div id="aiSteps"></div>
+    <div id="aiSteps"></div>
     <div id="aiWarn" class="alert amber" style="display:none"><b>Keep this screen on</b><p>If the phone locks or you switch apps, iOS stops the request. It should finish in under a minute.</p></div>
     ${renderAI(ADD.ai)}
     <label>Add the foods<input class="search" placeholder="Start typing a food" oninput="pickList(this.value)"></label>
@@ -1236,22 +1251,14 @@ ${this.libraryText()}`;
 
   // Extract the first complete JSON object by brace matching (string-aware).
   // Fence-stripping alone fails when the response is truncated or has trailing prose.
-  extractJSON(text){
-    const i=text.indexOf("{"); if(i<0) return null;
-    let d=0, inStr=false, esc=false;
-    for(let j=i;j<text.length;j++){
-      const c=text[j];
-      if(inStr){ if(esc) esc=false; else if(c==="\\") esc=true; else if(c==='"') inStr=false; continue; }
-      if(c==='"'){ inStr=true; continue; }
-      if(c==="{") d++;
-      else if(c==="}"){ d--; if(d===0){ try{ return JSON.parse(text.slice(i,j+1)); }catch(e){ return null; } } }
-    }
-    return null; // unbalanced — response was cut off
-  },
-
-  async raw(body, timeoutMs, ctlIn){
-    const ctl=ctlIn||new AbortController();
-    const t=setTimeout(()=>ctl.abort(), timeoutMs||90000);
+  async raw(body, timeoutMs, userCtl){
+    // The timeout gets its OWN controller. Aborting the shared user-cancel controller made every
+    // timeout look identical to the user pressing Stop, which killed the retry ladder dead.
+    const ctl = new AbortController();
+    const onUserAbort = ()=>ctl.abort();
+    if(userCtl) userCtl.signal.addEventListener("abort", onUserAbort);
+    let timedOut=false;
+    const t=setTimeout(()=>{ timedOut=true; ctl.abort(); }, timeoutMs||90000);
     try{
       const res = await fetch("https://api.anthropic.com/v1/messages",{
         method:"POST", signal:ctl.signal,
@@ -1260,18 +1267,25 @@ ${this.libraryText()}`;
         body: JSON.stringify(body)
       });
       if(!res.ok){
-        const t=await res.text();
-        const e=new Error(`API said ${res.status}. ${t.slice(0,240)}`);
+        const txt=await res.text();
+        const e=new Error(`API said ${res.status}. ${txt.slice(0,240)}`);
         e.kind = res.status===401 ? "key" : res.status===429 ? "rate" : res.status>=500 ? "server" : "api";
         throw e;
       }
       return await res.json();
     }catch(e){
-      if(e.name==="AbortError"){ const x=new Error("The request took too long and was cancelled."); x.kind="timeout"; throw x; }
+      if(e.name==="AbortError"){
+        if(userCtl && userCtl.signal.aborted){ const x=new Error("Cancelled."); x.kind="cancelled"; throw x; }
+        const x=new Error(`No reply within ${Math.round((timeoutMs||90000)/1000)} seconds.`);
+        x.kind="timeout"; throw x;
+      }
       if(e.kind) throw e;
-      // fetch throws a bare TypeError on network failure. Safari calls it "Load failed".
-      const x=new Error("Could not reach the internet, or the request was too big to send."); x.kind="network"; throw x;
-    }finally{ clearTimeout(t); }
+      const x=new Error("Could not reach the internet, or the request was too big to send.");
+      x.kind="network"; throw x;
+    }finally{
+      clearTimeout(t);
+      if(userCtl) userCtl.signal.removeEventListener("abort", onUserAbort);
+    }
   },
 
   extractJSON(text){
@@ -1334,10 +1348,11 @@ ${this.libraryText()}`;
       }catch(e){
         lastErr = e;
         tried.push(`${step.label}: ${e.kind||"error"}`);
+        if(opts.onStepFail) opts.onStepFail(step.label, e);
         // A bad key or a rate limit will not be fixed by trying smaller. Stop.
         if(e.kind==="key" || e.kind==="rate") break;
-        if(opts.ctl && opts.ctl.signal.aborted){ e.kind="cancelled"; break; }
-        continue;
+        if(e.kind==="cancelled") break;   // the user really did press Stop
+        continue;                          // a timeout is exactly what the next, smaller leg is for
       }
       tried.push(`${step.label}: wrong format`);
     }
@@ -1402,6 +1417,31 @@ function fileToResized(file, maxPx, quality){
 }
 
 
+
+// ---------- LIVE STEPS, shown inside the meal sheet ----------
+let AI_STEPS=[];
+function stepInit(hasPhoto, useSearch){
+  AI_STEPS=[
+    {k:"prep", n:"Prepare the photo", s: hasPhoto?"done":"skip",
+     m: hasPhoto?"Shrunk and ready to send":"No photo on this meal"},
+    {k:"full", n: useSearch?"Send to the AI, with web search":"Send to the AI", s:"wait", m:""},
+    {k:"no search", n:"If that fails: retry without web search", s:"wait", m:""},
+    {k:"text only", n:"If that fails: retry without the photo", s:"wait", m:""},
+    {k:"read", n:"Read the answer", s:"wait", m:""},
+  ];
+  paintSteps();
+}
+function stepSet(k,s,m){ const x=AI_STEPS.find(y=>y.k===k); if(x){ x.s=s; if(m!=null) x.m=m; } paintSteps(); }
+function paintSteps(){
+  const el=$("#aiSteps"); if(!el) return;
+  if(!AI_STEPS.length){ el.innerHTML=""; return; }
+  const label={done:"Worked",fail:"Failed",run:"Running",wait:"Waiting",skip:"Not needed"};
+  el.innerHTML=`<div class="steps"><b class="stepshead">What the app is doing</b>
+    ${AI_STEPS.map(x=>`<div class="step ${x.s}">
+      <span class="sname">${esc(x.n)}</span><span class="sstate">${label[x.s]}</span>
+      ${x.m?`<span class="smsg">${esc(x.m)}</span>`:""}</div>`).join("")}</div>`;
+}
+
 // ---------- KEEPING THE PHONE AWAKE ----------
 // iOS suspends a backgrounded tab and kills its fetches. Three defences:
 //  a) hold a screen wake lock while a request is running
@@ -1453,12 +1493,18 @@ async function runMealAI(){
   const cancel=$("#aiCancel"); if(cancel) cancel.style.display="inline-block";
   AI_CTL=new AbortController();
   await holdScreenAwake();
+  stepInit(!!PENDING_IMG, !!(STATE.settings||{}).useSearch);
   let secs=0, leg="full";
   aiBusy(leg,0);
   AI_TIMER=setInterval(()=>{ secs++; aiBusy(leg,secs); }, 1000);
   try{
     const r=await AI.analyseMeal(ADD, PENDING_IMG, "image/jpeg",
-      { ctl:AI_CTL, onProgress:(l)=>{ leg=l; aiBusy(l,secs); } });
+      { ctl:AI_CTL,
+        onProgress:(l)=>{ leg=l; aiBusy(l,secs); stepSet(l,"run","Waiting for a reply"); },
+        onStepFail:(l,e)=>stepSet(l,"fail", aiErrorHelp(e)) });
+    stepSet(r.degraded||"full","done","Got an answer");
+    ["full","no search","text only"].forEach(k=>{ const x=AI_STEPS.find(y=>y.k===k); if(x&&x.s==="wait") stepSet(k,"skip","Not needed, the step before it worked"); });
+    stepSet("read", r.parseError?"fail":"done", r.parseError?"The reply was not in a format the app could read":"Understood the reply");
     if(r.parseError){ ADD.ai={ error: r.truncated ? "The AI ran out of room to finish its answer, twice. Try again, or pick fewer foods." : "The AI replied in the wrong format. Try again." , raw:r.raw}; }
     else { ADD.ai=r.json; ADD.ai.degraded=r.degraded; ADD.ai.model=AI.model(); ADD.ai.at=new Date().toISOString(); ADD.ai.usage=r.usage; ADD.ai.searches=r.searches;
       (ADD.ai.identified_items||[]).forEach(it=>{ if(it.library_id && FOOD[it.library_id] && !ADD.items.includes(it.library_id) && it.confidence>=60) ADD.items.push(it.library_id); });
@@ -1471,7 +1517,8 @@ async function runMealAI(){
       if(!ADD.label && ADD.ai.identified_items?.length) ADD.label=ADD.ai.identified_items.slice(0,3).map(i=>i.name).join(", ");
     }
   }catch(e){
-    ADD.ai = (e.kind==="cancelled" || e.name==="AbortError")
+    stepSet("read","fail","Never got an answer to read");
+    ADD.ai = (e.kind==="cancelled")
       ? { error:"You stopped it." }
       : { error: aiErrorHelp(e), raw:e.raw, tried:e.tried };
   }finally{
@@ -1592,7 +1639,7 @@ function aiErrorHelp(e){
   if(k==="key")     return "Your API key was rejected. Check it in Settings — it should start with sk-ant-.";
   if(k==="rate")    return "Anthropic is rate-limiting your key. Wait a minute and try again.";
   if(k==="server")  return "Anthropic's server had a problem. Try again in a moment.";
-  if(k==="timeout") return "The request took too long. On a mobile connection this usually means the photo was too big or the network dropped. Try on Wi-Fi, or turn off web search in Settings to make it faster.";
+  if(k==="timeout") return "No reply in time. The app tries again automatically with less: first without web search, then without the photo.";
   if(k==="network") return "The request never reached Anthropic. On an iPhone the usual cause is Safari blocking cross-site requests: open the Settings app, go to Apps then Safari, and turn OFF Prevent Cross-Site Tracking, then reload this page. A VPN, a content blocker or Lockdown Mode will also do it.";
   if(k==="cancelled") return "You stopped it.";
   if(k==="format")  return "The AI replied in a format the app could not read. Try again.";
@@ -1603,7 +1650,7 @@ function renderAI(ai){
   if(ai.error) return `<div class="ai failed"><b>The AI could not finish</b><p>${esc(ai.error)}</p>
     ${ai.tried&&ai.tried.length?`<p class="disc">Tried: ${esc(ai.tried.join(" → "))}</p>`:""}
     ${ai.raw?`<pre>${esc(String(ai.raw).slice(0,600))}</pre>`:""}
-    ${ai.resumable?"":`<p class="disc">Go to Settings and press <b>Find out what is broken</b>. It runs five checks and tells you exactly which part is failing.</p>`}</div>`;
+    ${ai.resumable?"":`<p class="disc">The step list above shows exactly which part failed.</p>`}</div>`;
   const li=a=>(a||[]).map(x=>`<li>${esc(x)}</li>`).join("");
   const cites=c=>(c||[]).length?`<span class="cites">${(c||[]).map(esc).join(" ")}</span>`:"";
   const band=b=>b&&b!=="not available"?chip(b==="medium"?"med":b,'gi'):'<span class="status s-none">No data</span>';
@@ -1685,9 +1732,7 @@ function viewAISettings(){
   <label class="checkline"><input type="checkbox" id="useSearch" ${s.useSearch?"checked":""}> Let the AI look things up online. <b>Slower.</b> Leave this off on mobile data.</label>
   <label class="checkline"><input type="checkbox" id="hiRes" ${s.hiRes?"checked":""}> Send bigger photos. Better detail, but often fails on mobile data.</label>
   <button class="btn primary" onclick="saveAISettings()">Save</button>
-  <button class="btn" onclick="runDiagnostics()">Find out what is broken</button>
-  <p class="sub">Runs five checks, each adding one thing to the last. It stops at the first failure and tells you what that means.</p>
-  <div id="diagOut"></div>
+  <p class="sub">The step-by-step check now runs inside the meal itself. Open any meal, tap <b>Ask the AI dietitian</b>, and each step shows Worked or Failed as it happens.</p>
   <p class="sub">Each photo you analyse costs a few cents. The AI is told to use only the numbers in this app, to look things up online when a food is missing, and to say "no data" rather than guess. It still gets things wrong sometimes. Treat what it writes as a helpful first draft you check, not as medical advice.</p>`;
 }
 
